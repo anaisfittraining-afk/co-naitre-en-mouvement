@@ -101,7 +101,16 @@ body { padding-bottom: 40px; }
 .empty-note { font-size: 12.5px; color: var(--muted); }
 .abonnee-count-note { font-size: 12px; color: var(--carte-fg); background: var(--carte-bg); border-radius: 8px; padding: 8px 10px; line-height: 1.5; }
 
-.empty-state { text-align: center; padding: 50px 20px; color: var(--muted); }
+/* ── Suivi des événements (lecture seule) ── */
+.view-switch { margin-bottom: 14px; }
+.ev-badge { display: inline-block; font-size: 10.5px; font-weight: 700; color: var(--green); background: var(--chip); border-radius: 8px; padding: 2px 7px; margin-right: 4px; margin-top: 4px; }
+.ev-badge.ext { color: #8a5a26; background: #fdf3e9; }
+.person-rows { display: flex; flex-direction: column; gap: 4px; }
+.person-row { font-size: 13px; padding: 6px 10px; border-radius: 9px; background: var(--chip); display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.person-row.ext { background: #fdf3e9; }
+.person-row .tag { font-size: 10.5px; color: var(--muted); font-weight: 600; }
+.ev-day-line { font-size: 12.5px; color: var(--text); line-height: 1.7; }
+.empty-state {  text-align: center; padding: 50px 20px; color: var(--muted); }
 .empty-state .icon { font-size: 34px; margin-bottom: 10px; }
 .empty-state p { font-size: 13.5px; line-height: 1.6; }
 
@@ -114,10 +123,14 @@ body { padding-bottom: 40px; }
 
 <div class="site-header">
   <h1>📊 Effectifs</h1>
-  <p>co-NAÎTRE en mouvement — qui est inscrite, séance par séance</p>
+  <p>co-NAÎTRE en mouvement — qui est inscrite, séance par séance et événement par événement</p>
 </div>
 
 <div class="container">
+  <div class="tabs view-switch" id="viewSwitch">
+    <button class="tab-btn active" id="tabViewSeances" onclick="setView('seances')">🗓️ Séances</button>
+    <button class="tab-btn" id="tabViewEvents" onclick="setView('events')">🌟 Événements</button>
+  </div>
   <div class="stats-row" id="statsRow"></div>
   <div class="lieu-filter" id="lieuFilterRow"></div>
   <div class="tabs">
@@ -207,6 +220,19 @@ function resaCapaciteEffective(slot) {
 }
 function resaOccupancy(slot) {
   return (slot.abonnementCount || 0) + Object.keys(slot.abonnementChoix || {}).length + Object.keys(slot.carteBookings || {}).length + Object.keys(slot.essaiBookings || {}).length;
+}
+// Occupation "réelle" : comme resaOccupancy(), mais SANS les abonnées dont la place n'est encore que
+// PROVISOIRE (abonnementChoix[code].provisional === true, cf. "Choisis ton cours" côté reservation.html
+// — semaine à plusieurs cours présentiel, place tenue en attendant qu'elle valide). Tant qu'une
+// abonnée n'a pas cliqué "✅ Valider" (ou choisi directement l'autre créneau), elle n'a pas fait son
+// choix définitif : elle ne doit pas être comptée comme inscrite ici (badge "N inscrites", stat
+// "Inscriptions", statut "complet"), même si elle reste visible avec son étiquette "provisoire" dans
+// la liste "Choix" en dessous. Miroir exact de resOccupancyReelle/resaOccupancyReelle (reservation.html
+// / tableau_superfitmum.html), qui servent le même besoin côté capacité.
+function resaOccupancyReelle(slot) {
+  var choix = slot.abonnementChoix || {};
+  var validated = Object.keys(choix).filter(function(c) { return !choix[c].provisional; }).length;
+  return (slot.abonnementCount || 0) + validated + Object.keys(slot.carteBookings || {}).length + Object.keys(slot.essaiBookings || {}).length;
 }
 
 function setTab(tab) {
@@ -299,7 +325,7 @@ function attendeesHtml(s) {
 function slotCardHtml(s, passee) {
   var capacite = resaCapaciteEffective(s);
   var illimite = !isFinite(capacite);
-  var occ = resaOccupancy(s);
+  var occ = resaOccupancyReelle(s);
   var complet = !illimite && occ >= capacite;
   var isOpen = !!OPEN_IDS[s.id];
   var out = '<div class="slot-card' + (complet ? ' complet' : '') + (passee ? ' passee' : '') + (isOpen ? ' open' : '') + '" id="slotcard-' + s.id + '">';
@@ -314,7 +340,103 @@ function slotCardHtml(s, passee) {
   return out;
 }
 
+// ── Suivi des ÉVÉNEMENTS (lecture seule) : mêmes données que l'onglet 🌟 Événements du tableau de bord —
+// reservations/evenements (programmation), reservations/evenements_rsvp/<code>/<id> (réponses des adhérentes et
+// clientes Épanouissement) et reservations/evenements_externes/<id> (personnes extérieures inscrites via le lien
+// public). Rien n'est écrit ici ; ni e-mail ni téléphone affichés (ils restent dans le tableau de bord). ──
+var VIEW = 'seances';
+var EVENTS = {}, EV_RSVP = {}, EV_EXT = {};
+function setView(v) {
+  VIEW = v === 'events' ? 'events' : 'seances';
+  document.getElementById('tabViewSeances').classList.toggle('active', VIEW === 'seances');
+  document.getElementById('tabViewEvents').classList.toggle('active', VIEW === 'events');
+  render();
+}
+function evActivites(e) {
+  var a = e && e.activites;
+  if (!a) return [];
+  return (Array.isArray(a) ? a : Object.keys(a).map(function(k) { return a[k]; })).filter(function(x) { return x && x.id && x.nom; });
+}
+function evToList(a) { return a ? (Array.isArray(a) ? a : Object.keys(a).map(function(k) { return a[k]; })) : []; }
+function evPeople(id) {
+  var byName = {};
+  Object.keys(EV_RSVP || {}).forEach(function(code) {
+    var r = EV_RSVP[code] && EV_RSVP[code][id];
+    if (!r || (r.response !== 'oui' && r.response !== 'non')) return;
+    var name = (r.name || '').trim() || 'Anonyme';
+    var k = name.toLowerCase();
+    var acts = r.activites ? evToList(r.activites) : (r.activite ? [{ id: r.activite, nom: r.activiteNom || '' }] : []);
+    if (!byName[k] || (r.at || '') > (byName[k].at || '')) byName[k] = { name: name, response: r.response, at: r.at || '', origin: r.app === 'epa' ? 'Épanouissement' : 'Association', ext: false, activites: r.response === 'oui' ? acts.filter(function(a) { return a && a.id; }) : [] };
+  });
+  var list = Object.keys(byName).map(function(k) { return byName[k]; });
+  var ext = (EV_EXT && EV_EXT[id]) || {};
+  Object.keys(ext).forEach(function(k) {
+    var r = ext[k] || {};
+    list.push({ name: ((r.prenom || '') + ' ' + (r.nom || '')).trim() || 'Anonyme', response: 'oui', at: r.firstAt || r.at || '', origin: 'Extérieure' + (r.source ? ' · ' + r.source : ''), ext: true, activites: evToList(r.activites).filter(function(a) { return a && a.id; }) });
+  });
+  return list.sort(function(a, b) { return a.name.localeCompare(b.name); });
+}
+function toggleEvCard(id) {
+  OPEN_IDS['ev-' + id] = !OPEN_IDS['ev-' + id];
+  var card = document.getElementById('evcard-' + id);
+  if (card) card.classList.toggle('open', !!OPEN_IDS['ev-' + id]);
+}
+function personRowHtml(x) { return '<div class="person-row' + (x.ext ? ' ext' : '') + '"><span>' + esc(x.name) + '</span><span class="tag">' + esc(x.origin) + '</span></div>'; }
+function eventCardHtml(e, passee) {
+  var acts = evActivites(e);
+  var people = evPeople(e.id);
+  var oui = people.filter(function(x) { return x.response === 'oui'; });
+  var non = people.filter(function(x) { return x.response === 'non'; });
+  var nbExt = oui.filter(function(x) { return x.ext; }).length;
+  var pub = e.public === 'association' ? '🏛️ Association' : (e.public === 'epanouissement' ? '🦋 Épanouissement' : '🏛️ + 🦋 Association et Épanouissement');
+  var isOpen = !!OPEN_IDS['ev-' + e.id];
+  var o = '<div class="slot-card' + (passee ? ' passee' : '') + (isOpen ? ' open' : '') + '" id="evcard-' + esc(e.id) + '">';
+  o += '<div class="slot-head" onclick="toggleEvCard(' + jsAttr(e.id) + ')"><div class="slot-info"><div class="slot-date">' + esc(e.nom || '') + '</div>';
+  o += '<div class="slot-sub">' + esc(fmtDateFriendly(e.date)) + (e.heure ? ' · ' + esc(e.heure) : '') + '</div>';
+  o += '<div><span class="ev-badge">' + pub + '</span>' + (e.exterieur ? '<span class="ev-badge ext">🌐 Ouvert aux extérieures</span>' : '') + '</div></div>';
+  o += '<div class="slot-occ"><div class="n">' + oui.length + '</div><div class="cap">viennent' + (nbExt ? ' · dont ' + nbExt + ' ext.' : '') + '</div></div><div class="chevron">▾</div></div>';
+  o += '<div class="slot-body">';
+  if (acts.length) {
+    acts.forEach(function(a) {
+      var l = oui.filter(function(x) { return x.activites.some(function(y) { return y.id === a.id; }); });
+      o += '<div class="attendee-group"><div class="attendee-group-lbl ca">🎯 ' + esc(a.nom) + ' (' + l.length + ')</div>' + (l.length ? '<div class="person-rows">' + l.map(personRowHtml).join('') + '</div>' : '') + '</div>';
+    });
+    var sans = oui.filter(function(x) { return !x.activites.length; });
+    if (sans.length) o += '<div class="attendee-group"><div class="attendee-group-lbl ab">⏳ Viennent, activité pas encore choisie (' + sans.length + ')</div><div class="person-rows">' + sans.map(personRowHtml).join('') + '</div></div>';
+  }
+  o += '<div class="attendee-group"><div class="attendee-group-lbl es">✅ Viennent (' + oui.length + ')</div>' + (oui.length ? '<div class="person-rows">' + oui.map(personRowHtml).join('') + '</div>' : '<p class="empty-note">Personne pour l\'instant.</p>') + '</div>';
+  if (non.length) o += '<div class="attendee-group"><div class="attendee-group-lbl ab">❌ Ne viennent pas (' + non.length + ')</div><div class="person-rows">' + non.map(personRowHtml).join('') + '</div></div>';
+  var perDay = {};
+  oui.forEach(function(x) { var d = String(x.at || '').slice(0, 10); if (d) perDay[d] = (perDay[d] || 0) + 1; });
+  var days = Object.keys(perDay).sort().reverse().slice(0, 14);
+  if (days.length) o += '<div class="attendee-group"><div class="attendee-group-lbl ca">📈 Évolution des inscriptions</div><div class="ev-day-line">' + days.map(function(d) { var p = d.split('-'); return p[2] + '/' + p[1] + ' : +' + perDay[d]; }).join('<br>') + '</div></div>';
+  return o + '</div></div>';
+}
+function renderEvents() {
+  var listEl = document.getElementById('listContent');
+  var statsEl = document.getElementById('statsRow');
+  var today = todayISO();
+  var all = Object.keys(EVENTS).map(function(id) { return Object.assign({ id: id }, EVENTS[id]); }).filter(function(e) { return e && e.date; });
+  var upcoming = all.filter(function(e) { return e.date >= today; }).sort(function(a, b) { return ((a.date || '') + (a.heure || '')).localeCompare((b.date || '') + (b.heure || '')); });
+  var past = all.filter(function(e) { return e.date < today; }).sort(function(a, b) { return ((b.date || '') + (b.heure || '')).localeCompare((a.date || '') + (a.heure || '')); });
+  var totalOui = 0, totalExt = 0;
+  upcoming.forEach(function(e) { var pp = evPeople(e.id).filter(function(x) { return x.response === 'oui'; }); totalOui += pp.length; totalExt += pp.filter(function(x) { return x.ext; }).length; });
+  statsEl.innerHTML =
+    '<div class="stat-chip"><div class="num">' + upcoming.length + '</div><div class="lbl">Événements à venir</div></div>' +
+    '<div class="stat-chip"><div class="num">' + totalOui + '</div><div class="lbl">Inscriptions</div></div>' +
+    '<div class="stat-chip"><div class="num">' + totalExt + '</div><div class="lbl">Extérieures</div></div>';
+  var list = ACTIVE_TAB === 'venir' ? upcoming : past;
+  if (!list.length) {
+    listEl.innerHTML = '<div class="empty-state"><div class="icon">🌟</div><p>' + (ACTIVE_TAB === 'venir' ? 'Aucun événement à venir pour l\'instant.' : 'Aucun événement passé.') + '</p></div>';
+    return;
+  }
+  listEl.innerHTML = list.map(function(e) { return eventCardHtml(e, ACTIVE_TAB === 'passees'); }).join('');
+}
+
 function render() {
+  var lf = document.getElementById('lieuFilterRow');
+  if (lf) lf.style.display = VIEW === 'events' ? 'none' : '';
+  if (VIEW === 'events') { renderEvents(); return; }
   var listEl = document.getElementById('listContent');
   var statsEl = document.getElementById('statsRow');
   var today = todayISO();
@@ -324,8 +446,8 @@ function render() {
   var upcoming = all.filter(function(s) { return s.date >= today; }).sort(function(a, b) { return (a.date + a.heure).localeCompare(b.date + b.heure); });
   var past = all.filter(function(s) { return s.date < today; }).sort(function(a, b) { return (b.date + b.heure).localeCompare(a.date + a.heure); });
 
-  var totalInscritsAVenir = upcoming.reduce(function(sum, s) { return sum + resaOccupancy(s); }, 0);
-  var completCount = upcoming.filter(function(s) { var cap = resaCapaciteEffective(s); return isFinite(cap) && resaOccupancy(s) >= cap; }).length;
+  var totalInscritsAVenir = upcoming.reduce(function(sum, s) { return sum + resaOccupancyReelle(s); }, 0);
+  var completCount = upcoming.filter(function(s) { var cap = resaCapaciteEffective(s); return isFinite(cap) && resaOccupancyReelle(s) >= cap; }).length;
   statsEl.innerHTML =
     '<div class="stat-chip"><div class="num">' + upcoming.length + '</div><div class="lbl">Séances à venir</div></div>' +
     '<div class="stat-chip"><div class="num">' + totalInscritsAVenir + '</div><div class="lbl">Inscriptions</div></div>' +
@@ -346,6 +468,9 @@ if (db) {
     CRENEAUX = snap.val() || {};
     render();
   });
+  db.ref('reservations/evenements').on('value', function(snap) { EVENTS = snap.val() || {}; if (VIEW === 'events') render(); });
+  db.ref('reservations/evenements_rsvp').on('value', function(snap) { EV_RSVP = snap.val() || {}; if (VIEW === 'events') render(); });
+  db.ref('reservations/evenements_externes').on('value', function(snap) { EV_EXT = snap.val() || {}; if (VIEW === 'events') render(); });
 } else {
   document.getElementById('listContent').innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><p>Connexion indisponible pour l\'instant — vérifie ta connexion internet et réessaie.</p></div>';
 }
