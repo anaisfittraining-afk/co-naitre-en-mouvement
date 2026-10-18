@@ -5,6 +5,25 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#3F5D46">
 <title>🌿 co-NAÎTRE en mouvement</title>
+<script>
+// ── Anti-cache : force un rechargement (une seule fois par nouvelle version) quand le fichier a été
+// mis à jour, pour que les adhérentes voient toujours la dernière version (ex. lien du live du soir)
+// même si leur téléphone avait mis la page en cache — même mécanisme que sur Maisonnée. ──
+window.RES_BUILD_VERSION = '2026-09-29-a';
+(function() {
+  try {
+    var KEY = 'res_build_seen_v1';
+    var seen = localStorage.getItem(KEY);
+    if (seen !== window.RES_BUILD_VERSION) {
+      localStorage.setItem(KEY, window.RES_BUILD_VERSION);
+      if (!/[?&]_v=/.test(location.search)) {
+        var sep = location.search ? '&' : '?';
+        location.replace(location.pathname + location.search + sep + '_v=' + Date.now() + location.hash);
+      }
+    }
+  } catch (e) {}
+})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=Karla:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap">
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
@@ -194,9 +213,10 @@ h1, h2, h3 { font-family: 'Fraunces', serif; font-optical-sizing: auto; }
     </div>
   </div>
 
-  <!-- PILATES LIVE DU JOUR : réservé aux adhérentes du Pass Complet (abonnement "both", 32€/mois) —
-       affiché uniquement les jours où un créneau "en ligne" a lieu et qu'un lien a été renseigné par
-       la coach. Voir resRenderLiveCard(). -->
+  <!-- PILATES LIVE DU JOUR : accessible aux abonnements qui couvrent l'en ligne (Pass Complet ou Pass
+       "en ligne"), et aux autres adhérentes réservées sur ce créneau précis (carte, essai) — affiché
+       uniquement les jours où un créneau "en ligne" a lieu et qu'un lien a été renseigné par la coach.
+       Voir resRenderLiveCard(). -->
   <div class="card" id="liveCard" style="display:none;border-color:var(--green);background:linear-gradient(135deg,#E7EEE1,#F7F1E6)">
     <div class="card-header"><span class="accent">🔴</span><h2>Pilates Live aujourd'hui</h2></div>
     <div class="card-body" id="liveCardBody"></div>
@@ -274,7 +294,22 @@ h1, h2, h3 { font-family: 'Fraunces', serif; font-optical-sizing: auto; }
     </div>
   </div>
 
+  <!-- ÉVÉNEMENT OFFERT — INSCRIPTION DES PERSONNES EXTÉRIEURES : page ouverte via le lien public
+       reservation.html?evenement=<id> (fourni dans le tableau de bord, onglet Événements). Voir resExt*(). -->
+  <div class="card" id="extEventCard" style="display:none">
+    <div class="card-header"><span class="accent">🌟</span><h2 id="extEventTitle">Événement</h2></div>
+    <div class="card-body" id="extEventBody"></div>
+  </div>
+
   <!-- REPLAYS DE LIVES : réservé aux adhérentes du Pass Complet (abonnement "both", 32€/mois) -->
+  <div class="card" id="evenementsCard" style="display:none">
+    <div class="card-header toggle" onclick="resToggleCard('evenementsCard')">
+      <span class="accent">🌟</span><h2>Événements trimestriels</h2>
+      <span class="card-count" id="evenementsCount"></span><span class="chevron">▾</span>
+    </div>
+    <div class="card-body" id="evenementsBody"></div>
+  </div>
+
   <div class="card collapsed" id="replaysCard" style="display:none">
     <div class="card-header toggle" onclick="resToggleCard('replaysCard')">
       <span class="accent">🎥</span><h2>Replays de lives</h2>
@@ -1069,6 +1104,133 @@ function resRenderWaitlist() {
   body.innerHTML = out;
 }
 
+// ── Événements trimestriels : programmés par la coach depuis son tableau de bord (Firebase
+// reservations/evenements). Payant, SAUF pour les adhérentes du Pass Complet (abonnement "both") qui l'ont
+// offert ; ou "gratuit pour tous". Seuls les événements à venir sont affichés. ──
+var RES_EVENEMENTS = {};
+// Lien d'inscription/paiement des événements : TOUJOURS celui des inscriptions Pilates (Desvres), le même que
+// dans "Nouvelle inscription" (modifiable dans le tableau de bord, Réservations) — jamais saisi par événement.
+// Affiché uniquement aux clientes qui doivent payer (événement payant et pas de Pass Complet).
+var RES_EV_LINK = 'https://reservation.oamafernet.com/pilateshybride-458251'; // valeur par défaut, remplacée par celle de Firebase
+function resFetchEvenementLink() {
+  if (!resDB) return;
+  resDB.ref('reservations/' + RES_CRM_LINK_FIELD.desvres).on('value', function(s) {
+    RES_EV_LINK = s.val() || RES_CRM_LINK_DEFAULT.desvres || RES_EV_LINK;
+    resRenderEvenements();
+  });
+}
+var RES_EV_RSVP = {}; // mes réponses de présence : { idEvenement: { response: 'oui'|'non', ... } }
+// Chemin Firebase 'reservations/evenements_rsvp/<code>/<idEvenement>' — une réponse par cliente et par
+// événement, modifiable à tout moment ; le tableau de bord les regroupe par événement.
+// Activités d'un événement (3 maximum) : l'adhérente peut en choisir UNE OU PLUSIEURS. Stockées dans
+// reservations/evenements/<id>/activites = [{ id, nom }, ...] ; ses choix dans sa réponse : activites = [{ id, nom }, ...].
+function resEvActivites(e) {
+  var a = e && e.activites;
+  if (!a) return [];
+  var list = Array.isArray(a) ? a : Object.keys(a).map(function(k) { return a[k]; });
+  return list.filter(function(x) { return x && x.id && x.nom; });
+}
+// Activités choisies dans une réponse (gère aussi l'ancien format à une seule activité).
+function resEvChoix(rec) {
+  if (!rec || rec.response !== 'oui') return [];
+  var a = rec.activites;
+  if (a) return (Array.isArray(a) ? a : Object.keys(a).map(function(k) { return a[k]; })).filter(function(x) { return x && x.id; });
+  return rec.activite ? [{ id: rec.activite, nom: rec.activiteNom || '' }] : [];
+}
+// Clic sur une activité : la coche / décoche. Aucune activité cochée = plus de réponse. « Je ne viens pas » = response 'non'.
+function resEvenementRsvp(id, response, activiteId) {
+  if (!resDB || !RES_CODE || !RES_CLIENT) return;
+  if (response !== 'oui' && response !== 'non') return;
+  var ev = RES_EVENEMENTS[id] || {};
+  var acts = resEvActivites(ev);
+  var choix = [];
+  if (response === 'oui' && acts.length) {
+    var act = acts.filter(function(a) { return a.id === activiteId; })[0];
+    if (!act) return;
+    var cur = resEvChoix(RES_EV_RSVP[id]).filter(function(c) { return acts.some(function(a) { return a.id === c.id; }); });
+    var already = cur.some(function(c) { return c.id === act.id; });
+    var ids = cur.map(function(c) { return c.id; });
+    if (already) ids = ids.filter(function(i) { return i !== act.id; }); else ids.push(act.id);
+    choix = acts.filter(function(a) { return ids.indexOf(a.id) !== -1; }).map(function(a) { return { id: a.id, nom: a.nom }; });
+    if (!choix.length) { // tout décoché : on retire sa réponse
+      delete RES_EV_RSVP[id];
+      resRenderEvenements();
+      resDB.ref('reservations/evenements_rsvp/' + RES_CODE + '/' + id).remove().catch(function() {});
+      return;
+    }
+  }
+  var rec = { name: RES_CLIENT.nom || '', response: response, at: new Date().toISOString(), event: ev.nom || '', app: 'resa', activites: choix };
+  RES_EV_RSVP[id] = rec; // affichage immédiat, confirmé ensuite par l'écouteur Firebase
+  resRenderEvenements();
+  resDB.ref('reservations/evenements_rsvp/' + RES_CODE + '/' + id).set(rec).catch(function(err) {
+    alert('Erreur lors de l\'enregistrement de ta réponse : ' + (err && err.message ? err.message : 'inconnue'));
+  });
+}
+function resEvenementDateLabel(date, heure) {
+  var p = String(date || '').split('-').map(Number);
+  if (p.length !== 3 || !p[0]) return esc(date || '');
+  var d = new Date(p[0], p[1] - 1, p[2]);
+  var jours = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+  var mois = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+  return jours[d.getDay()] + ' ' + p[2] + ' ' + mois[p[1] - 1] + (heure ? ' à ' + String(heure).replace(':', 'h') : '');
+}
+function resRenderEvenements() {
+  var card = document.getElementById('evenementsCard');
+  var body = document.getElementById('evenementsBody');
+  if (!card || !body) return;
+  if (!RES_CLIENT) { card.style.display = 'none'; body.innerHTML = ''; return; }
+  var today = resTodayISO();
+  var hasComplet = (RES_CLIENT.abonnementTypes || []).indexOf('both') !== -1;
+  var all = Object.keys(RES_EVENEMENTS).map(function(id) { return Object.assign({ id: id }, RES_EVENEMENTS[id]); })
+    .filter(function(e) { return e && e.nom && (e.date || '') >= today && e.public !== 'epanouissement'; })
+    .sort(function(a, b) { return ((a.date || '') + ' ' + (a.heure || '')).localeCompare((b.date || '') + ' ' + (b.heure || '')); });
+  card.style.display = all.length ? '' : 'none';
+  document.getElementById('evenementsCount').textContent = all.length ? all.length : '';
+  if (!all.length) { body.innerHTML = ''; return; }
+  var out = '';
+  all.forEach(function(e) {
+    var statut, offert = false;
+    if (!e.payant) { statut = '🎁 Gratuit pour tous'; offert = true; }
+    else if (hasComplet) { statut = '✨ Offert avec ton Pass Complet'; offert = true; }
+    else { statut = '💶 Payant' + (e.prix ? ' — ' + esc(e.prix) : ''); }
+    out += '<div class="resa-item" style="align-items:flex-start;flex-wrap:wrap">';
+    out += '<div class="resa-item-info"><b>' + esc(e.nom) + '</b>';
+    out += '<div class="resa-item-sub">' + resEvenementDateLabel(e.date, e.heure) + '</div>';
+    out += '<div class="resa-item-sub" style="font-weight:700;color:' + (offert ? 'var(--green)' : '#8a5a26') + '">' + statut + '</div></div>';
+    if (offert) out += '<div class="resa-item-sub" style="max-width:190px">Rien à régler pour toi.</div>';
+    else if (RES_EV_LINK) out += '<a class="btn-mini positive" style="text-decoration:none" href="' + esc(RES_EV_LINK) + '" target="_blank" rel="noopener">S\'inscrire et régler</a>';
+    else out += '<div class="resa-item-sub" style="max-width:190px">Contacte Anaïs pour t\'inscrire.</div>';
+    var rec = RES_EV_RSVP[e.id] || null;
+    var mine = rec && rec.response;
+    var acts = resEvActivites(e);
+    out += '<div style="flex:1 1 100%;margin-top:4px">';
+    if (acts.length) {
+      var choisies = resEvChoix(rec).filter(function(c) { return acts.some(function(a) { return a.id === c.id; }); });
+      out += '<div class="resa-item-sub" style="font-weight:700;margin-bottom:6px">Choisis tes activités (une ou plusieurs) :</div>';
+      out += '<div style="display:flex;gap:8px;flex-wrap:wrap">';
+      acts.forEach(function(a) {
+        var on = choisies.some(function(c) { return c.id === a.id; });
+        out += '<button class="btn-mini' + (on ? ' positive' : '') + '" style="' + (on ? 'background:var(--chip);' : '') + '" onclick="resEvenementRsvp(' + jsAttr(e.id) + ',\'oui\',' + jsAttr(a.id) + ')">' + (on ? '✅ ' : '') + esc(a.nom) + '</button>';
+      });
+      out += '</div>';
+      out += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn-mini' + (mine === 'non' ? ' danger' : '') + '" style="' + (mine === 'non' ? 'background:#fff5f5;' : '') + '" onclick="resEvenementRsvp(' + jsAttr(e.id) + ',\'non\')">❌ Je ne viens pas</button></div>';
+      if (choisies.length) out += '<div class="resa-item-sub" style="margin-top:6px;font-style:italic">Ton inscription : ' + choisies.map(function(c) { return '✅ ' + esc(c.nom); }).join(', ') + ' — touche une activité pour l\'ajouter ou la retirer.</div>';
+      else if (mine === 'oui') out += '<div class="resa-item-sub" style="margin-top:6px;font-style:italic;color:#8a5a26">Choisis au moins une activité ci-dessus pour confirmer ta présence.</div>';
+      else if (mine === 'non') out += '<div class="resa-item-sub" style="margin-top:6px;font-style:italic">Ta réponse : ❌ tu ne viens pas — tu peux la changer à tout moment.</div>';
+    } else {
+      out += '<div class="resa-item-sub" style="font-weight:700;margin-bottom:6px">Seras-tu présente ?</div>';
+      out += '<div style="display:flex;gap:8px;flex-wrap:wrap">';
+      out += '<button class="btn-mini' + (mine === 'oui' ? ' positive' : '') + '" style="' + (mine === 'oui' ? 'background:var(--chip);' : '') + '" onclick="resEvenementRsvp(' + jsAttr(e.id) + ',\'oui\')">✅ Je viens</button>';
+      out += '<button class="btn-mini' + (mine === 'non' ? ' danger' : '') + '" style="' + (mine === 'non' ? 'background:#fff5f5;' : '') + '" onclick="resEvenementRsvp(' + jsAttr(e.id) + ',\'non\')">❌ Je ne viens pas</button>';
+      out += '</div>';
+      if (mine) out += '<div class="resa-item-sub" style="margin-top:6px;font-style:italic">Ta réponse : ' + (mine === 'oui' ? '✅ tu viens' : '❌ tu ne viens pas') + ' — tu peux la changer à tout moment.</div>';
+    }
+    out += '</div>';
+    out += '</div>';
+  });
+  body.innerHTML = out;
+}
+
 // ── Replays de lives : réservé aux adhérentes du Pass Complet (abonnement "both", 32€/mois) ──────
 var RES_REPLAYS = {};
 function resRenderReplays() {
@@ -1096,20 +1258,30 @@ function resRenderReplays() {
   body.innerHTML = out;
 }
 
-// ── Pilates Live du jour : réservé aux adhérentes du Pass Complet (abonnement "both", 32€/mois) —
-// affiché uniquement les jours où un créneau "en ligne" a lieu aujourd'hui et qu'un lien a été
-// renseigné par la coach (voir resaSetSlotLienLive / le modèle récurrent côté tableau de bord).
-// Reste visible toute la journée du live, quelle que soit l'heure exacte déjà passée ou non. ──
+// ── Pilates Live du jour : affiché uniquement les jours où un créneau "en ligne" a lieu aujourd'hui et
+// qu'un lien a été renseigné par la coach (voir resaSetSlotLienLive / le modèle récurrent côté tableau
+// de bord). Reste visible toute la journée du live, quelle que soit l'heure exacte déjà passée ou non.
+// Éligible : soit un abonnement qui couvre les créneaux en ligne (Pass Complet "both", OU un Pass
+// dédié "en_ligne" — resHasAbonnementType('en_ligne') couvre les deux, voir sa définition), auquel cas
+// TOUS les lives du jour sont accessibles sans réservation préalable ; soit, pour une adhérente sans un
+// tel abonnement (carte à l'unité, séance d'essai), une réservation effective sur CE créneau précis
+// (carteBookings/essaiBookings/abonnementChoix à son code) — avant ce correctif, seul le Pass Complet
+// donnait accès au lien, ce qui excluait à tort les Pass "en ligne" seul et les cartes/essais réservés. ──
 function resRenderLiveCard() {
   var card = document.getElementById('liveCard');
   var body = document.getElementById('liveCardBody');
-  var eligible = !!(RES_CLIENT && resHasAbonnementType('both'));
   var today = resTodayISO();
-  var lives = eligible ? Object.keys(RES_CRENEAUX)
+  var hasOnlinePass = !!(RES_CLIENT && resHasAbonnementType('en_ligne'));
+  var lives = Object.keys(RES_CRENEAUX)
     .map(function(id) { return Object.assign({ id: id }, RES_CRENEAUX[id]); })
-    .filter(function(s) { return s.type === 'en_ligne' && s.date === today && s.lienLive; })
-    .sort(function(a, b) { return (a.heure || '').localeCompare(b.heure || ''); }) : [];
-  if (!eligible || !lives.length) { card.style.display = 'none'; body.innerHTML = ''; return; }
+    .filter(function(s) {
+      if (s.type !== 'en_ligne' || s.date !== today || !s.lienLive) return false;
+      if (hasOnlinePass) return true;
+      if (!RES_CODE) return false;
+      return !!((s.carteBookings && s.carteBookings[RES_CODE]) || (s.essaiBookings && s.essaiBookings[RES_CODE]) || (s.abonnementChoix && s.abonnementChoix[RES_CODE]));
+    })
+    .sort(function(a, b) { return (a.heure || '').localeCompare(b.heure || ''); });
+  if (!lives.length) { card.style.display = 'none'; body.innerHTML = ''; return; }
   card.style.display = '';
   var out = '';
   lives.forEach(function(s) {
@@ -1133,6 +1305,7 @@ function resRenderAll() {
   resRenderSlots();
   resRenderWaitlist();
   resRenderReplays();
+  resRenderEvenements();
 }
 
 function confirmBooking() {
@@ -1454,9 +1627,199 @@ function resLoadClientAndListen(fromIdentify) {
       RES_REPLAYS = s.val() || {};
       resRenderReplays();
     });
+    resDB.ref('reservations/evenements').on('value', function(s) {
+      RES_EVENEMENTS = s.val() || {};
+      resRenderEvenements();
+    });
+    resFetchEvenementLink();
+    resDB.ref('reservations/evenements_rsvp/' + RES_CODE).on('value', function(s) {
+      RES_EV_RSVP = s.val() || {};
+      resRenderEvenements();
+    });
   }).catch(function(err) {
     resShowError('Erreur de chargement : ' + (err && err.message ? err.message : err));
   });
+}
+
+// ── Inscription des PERSONNES EXTÉRIEURES à un événement (lien public ?evenement=<id>) ───────────
+// Pour qu'un événement soit ouvert à tout le monde, Anaïs coche « Ouvrir aux personnes extérieures » sur
+// l'événement (tableau de bord → 🌟 Événements) et diffuse le lien qui s'affiche sur sa carte. La personne
+// remplit prénom / e-mail (+ téléphone, activités) : l'inscription est enregistrée sur Firebase
+// (reservations/evenements_externes/<idEvenement>/<cléEmail>) pour le suivi dans le tableau de bord, puis,
+// si l'événement a un lien HighLevel (champ lienCrm, ou le lien d'inscription Desvres pour un événement
+// payant), elle y est envoyée avec ses informations préremplies — c'est ce qui la fait entrer dans le CRM.
+// ?src=<origine> (ex. instagram) est mémorisé pour savoir d'où viennent les inscrites.
+var RES_EXT_PARAMS = new URLSearchParams(window.location.search);
+var RES_EXT_ID = RES_EXT_PARAMS.get('evenement') || '';
+var RES_EXT_SRC = (RES_EXT_PARAMS.get('src') || '').replace(/[^\w\- ]/g, '').slice(0, 40);
+var RES_EXT_EVENT = null;
+function resExtKey(email) { return String(email || '').toLowerCase().trim().replace(/[.#$\/\[\]]/g, '_'); }
+function resExtDateLabel(date, heure) {
+  var p = String(date || '').split('-').map(Number);
+  if (p.length !== 3 || !p[0]) return String(date || '');
+  var d = new Date(p[0], p[1] - 1, p[2]);
+  var jours = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+  var mois = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+  return jours[d.getDay()] + ' ' + p[2] + ' ' + mois[p[1] - 1] + ' ' + p[0] + (heure ? ' à ' + String(heure).replace(':', 'h') : '');
+}
+function resExtMessage(title, html) {
+  document.getElementById('extEventCard').style.display = '';
+  document.getElementById('extEventTitle').textContent = title;
+  document.getElementById('extEventBody').innerHTML = html;
+}
+function resShowExternalEvent(id) {
+  resExtMessage('Événement', '<p class="card-hint">Chargement…</p>');
+  resDB.ref('reservations/evenements/' + id).once('value').then(function(snap) {
+    var e = snap.val();
+    var now = new Date();
+    var today = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+    if (!e || !e.exterieur || e.public === 'epanouissement') {
+      resExtMessage('Événement', '<p class="card-hint">Les inscriptions à cet événement ne sont pas ouvertes (ou l\'événement n\'existe plus). N\'hésite pas à écrire à Anaïs.</p>');
+      return;
+    }
+    if ((e.date || '') < today) {
+      resExtMessage(e.nom || 'Événement', '<p class="card-hint">Cet événement a déjà eu lieu. Merci de ton intérêt — de nouvelles dates arrivent bientôt !</p>');
+      return;
+    }
+    RES_EXT_EVENT = Object.assign({ id: id }, e);
+    resExtRenderForm();
+  }).catch(function(err) {
+    resExtMessage('Événement', '<p class="card-hint">Impossible de charger l\'événement pour le moment. Vérifie ta connexion et réessaie.</p>');
+  });
+}
+function resExtRenderForm() {
+  var e = RES_EXT_EVENT;
+  var acts = resEvActivites(e);
+  var h = '<p style="font-size:15px;font-weight:700;margin:0 0 2px">' + esc(e.nom || '') + '</p>';
+  h += '<p class="card-hint" style="margin-bottom:12px">' + esc(resExtDateLabel(e.date, e.heure)) + (e.payant ? (e.prix ? ' · ' + esc(e.prix) : '') : ' · Offert') + '</p>';
+  h += '<input type="text" id="extPrenom" class="input-field" placeholder="Prénom" autocomplete="given-name">';
+  h += '<input type="text" id="extNom" class="input-field" placeholder="Nom (optionnel)" autocomplete="family-name">';
+  h += '<input type="email" id="extEmail" class="input-field" placeholder="Email" autocomplete="email">';
+  h += '<input type="tel" id="extTel" class="input-field" placeholder="Téléphone (optionnel)" autocomplete="tel">';
+  if (acts.length) {
+    h += '<p class="card-hint" style="margin:14px 0 6px">Choisis la ou les activités qui t\'intéressent :</p>';
+    acts.forEach(function(a, i) {
+      h += '<label style="display:flex;gap:9px;align-items:center;padding:9px 12px;border:1.5px solid var(--border);border-radius:12px;margin-bottom:6px;font-size:14px;cursor:pointer"><input type="checkbox" class="extAct" value="' + esc(a.id) + '" data-nom="' + esc(a.nom) + '"> ' + esc(a.nom) + '</label>';
+    });
+  }
+  h += '<label style="display:flex;gap:9px;align-items:flex-start;margin:14px 0 4px;font-size:12.5px;color:var(--muted);line-height:1.5;cursor:pointer"><input type="checkbox" id="extConsent" style="margin-top:3px"> J\'accepte que mes coordonnées soient utilisées par Anaïs pour m\'envoyer les informations sur cet événement et ses prochaines propositions. Je peux me désinscrire à tout moment.</label>';
+  h += '<button class="btn-confirm" id="extSubmitBtn" onclick="resExtSubmit()" style="margin-top:12px">Je m\'inscris</button>';
+  h += '<div class="book-error" id="extError"></div>';
+  resExtMessage('Inscription à l\'événement', h);
+}
+function resExtError(msg) { var el = document.getElementById('extError'); if (!el) return; el.textContent = msg; el.style.display = msg ? 'block' : 'none'; }
+function resExtSubmit() {
+  var e = RES_EXT_EVENT;
+  if (!e || !resDB) return;
+  var prenom = (document.getElementById('extPrenom').value || '').trim();
+  var nom = (document.getElementById('extNom').value || '').trim();
+  var email = (document.getElementById('extEmail').value || '').toLowerCase().trim();
+  var tel = (document.getElementById('extTel').value || '').trim();
+  resExtError('');
+  if (!prenom) { resExtError('Indique ton prénom.'); return; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { resExtError('Indique une adresse e-mail valide.'); return; }
+  var consent = document.getElementById('extConsent');
+  if (!consent || !consent.checked) { resExtError('Coche la case d\'accord pour continuer.'); return; }
+  var acts = [];
+  Array.prototype.forEach.call(document.querySelectorAll('.extAct'), function(c) { if (c.checked) acts.push({ id: c.value, nom: c.getAttribute('data-nom') || '' }); });
+  var btn = document.getElementById('extSubmitBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Envoi…'; }
+  var nowIso = new Date().toISOString();
+  var rec = { prenom: prenom, nom: nom, email: email, telephone: tel, activites: acts, source: RES_EXT_SRC, event: e.nom || '', consent: true, at: nowIso };
+  resDB.ref('reservations/evenements_externes/' + e.id + '/' + resExtKey(email)).transaction(function(cur) {
+    // Si la personne se ré-inscrit avec le même e-mail, on met à jour ses choix sans doublon.
+    var first = cur && cur.firstAt ? cur.firstAt : nowIso;
+    return Object.assign({}, rec, { firstAt: first, source: RES_EXT_SRC || (cur && cur.source) || '' });
+  }).then(function() {
+    var link = e.lienCrm || (e.payant ? RES_EV_LINK : '');
+    if (link) {
+      var q = 'first_name=' + encodeURIComponent(prenom) + '&last_name=' + encodeURIComponent(nom) + '&email=' + encodeURIComponent(email) + '&phone=' + encodeURIComponent(tel) +
+        '&evenement=' + encodeURIComponent(e.nom || '') + '&evenement_date=' + encodeURIComponent(e.date || '') + '&activites=' + encodeURIComponent(acts.map(function(a) { return a.nom; }).join(', ')) + '&source=' + encodeURIComponent(RES_EXT_SRC);
+      var url = resNormalizeUrl(link) + (link.indexOf('?') === -1 ? '?' : '&') + q;
+      resExtMessage('Merci ' + prenom + ' !', '<p class="card-hint">Ton inscription est bien enregistrée. Dernière étape : on te redirige vers la page de confirmation…</p><a class="btn-confirm" style="display:block;text-align:center;text-decoration:none" href="' + esc(url) + '">Continuer</a>');
+      setTimeout(function() { window.location.href = url; }, 1800);
+    } else {
+      resExtMessage('Merci ' + prenom + ' !', '<p class="card-hint">Ton inscription à « ' + esc(e.nom || '') + ' » est bien enregistrée (' + esc(resExtDateLabel(e.date, e.heure)) + '). Anaïs te recontactera avec les informations pratiques. À très vite !</p>');
+    }
+  }).catch(function(err) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Je m\'inscris'; }
+    resExtError('Impossible d\'enregistrer ton inscription pour le moment — réessaie dans un instant.');
+  });
+}
+
+// ── SUIVI DES INSCRIPTIONS (lecture seule) pour l'associée d'Anaïs : lien reservation.html?suivi=<idÉvénement>&k=<clé>
+// généré depuis le tableau de bord (onglet Événements → « Partager le suivi »). Seule la clé de l'événement
+// (reservations/evenements/<id>/suiviToken) donne accès ; Anaïs peut la désactiver à tout moment. La page est mise à
+// jour en direct et n'affiche ni e-mail ni téléphone : uniquement noms, activités, origine et dates d'inscription.
+var RES_SUIVI_ID = RES_EXT_PARAMS.get('suivi') || '';
+var RES_SUIVI_KEY = RES_EXT_PARAMS.get('k') || '';
+var RES_SUIVI = { event: null, rsvp: {}, ext: {} };
+function resShowSuivi(id) {
+  resExtMessage('Suivi des inscriptions', '<p class="card-hint">Chargement…</p>');
+  var evRef = resDB.ref('reservations/evenements/' + id);
+  evRef.on('value', function(snap) {
+    var e = snap.val();
+    if (!e || !e.suiviToken || e.suiviToken !== RES_SUIVI_KEY) {
+      RES_SUIVI.event = null;
+      resExtMessage('Suivi des inscriptions', '<p class="card-hint">Ce lien de suivi n\'est plus actif (ou l\'événement n\'existe plus). Demande un nouveau lien à Anaïs.</p>');
+      return;
+    }
+    RES_SUIVI.event = e;
+    resSuiviRender();
+  });
+  resDB.ref('reservations/evenements_rsvp').on('value', function(snap) { RES_SUIVI.rsvp = snap.val() || {}; resSuiviRender(); });
+  resDB.ref('reservations/evenements_externes/' + id).on('value', function(snap) { RES_SUIVI.ext = snap.val() || {}; resSuiviRender(); });
+}
+function resSuiviList() {
+  var id = RES_SUIVI_ID, byName = {};
+  Object.keys(RES_SUIVI.rsvp || {}).forEach(function(code) {
+    var r = RES_SUIVI.rsvp[code] && RES_SUIVI.rsvp[code][id];
+    if (!r || (r.response !== 'oui' && r.response !== 'non')) return;
+    var name = (r.name || '').trim() || 'Anonyme';
+    var k = name.toLowerCase();
+    var acts = r.activites ? (Array.isArray(r.activites) ? r.activites : Object.keys(r.activites).map(function(x) { return r.activites[x]; })) : (r.activite ? [{ id: r.activite, nom: r.activiteNom || '' }] : []);
+    if (!byName[k] || (r.at || '') > (byName[k].at || '')) byName[k] = { name: name, response: r.response, at: r.at || '', origin: r.app === 'epa' ? 'Épanouissement' : 'Association', activites: r.response === 'oui' ? acts.filter(function(a) { return a && a.id; }) : [] };
+  });
+  var list = Object.keys(byName).map(function(k) { return byName[k]; });
+  Object.keys(RES_SUIVI.ext || {}).forEach(function(k) {
+    var r = RES_SUIVI.ext[k] || {};
+    var acts = r.activites ? (Array.isArray(r.activites) ? r.activites : Object.keys(r.activites).map(function(x) { return r.activites[x]; })) : [];
+    list.push({ name: ((r.prenom || '') + ' ' + (r.nom || '')).trim() || 'Anonyme', response: 'oui', at: r.firstAt || r.at || '', origin: 'Extérieure' + (r.source ? ' · ' + r.source : ''), ext: true, activites: acts.filter(function(a) { return a && a.id; }) });
+  });
+  return list.sort(function(a, b) { return a.name.localeCompare(b.name); });
+}
+function resSuiviRender() {
+  var e = RES_SUIVI.event;
+  if (!e) return;
+  var all = resSuiviList();
+  var oui = all.filter(function(x) { return x.response === 'oui'; });
+  var non = all.filter(function(x) { return x.response === 'non'; });
+  var nbExt = oui.filter(function(x) { return x.ext; }).length;
+  var acts = resEvActivites(e), known = {};
+  acts.forEach(function(a) { known[a.id] = a.nom; });
+  function chip(n, label, color) { return '<div style="flex:1 1 90px;background:var(--chip);border-radius:12px;padding:10px 12px;text-align:center"><div style="font-size:22px;font-weight:700;color:' + color + '">' + n + '</div><div style="font-size:11.5px;color:var(--muted)">' + label + '</div></div>'; }
+  function who(x) { return esc(x.name) + ' <span style="color:var(--muted);font-size:11.5px">(' + esc(x.origin) + ')</span>'; }
+  var h = '<p style="font-size:15px;font-weight:700;margin:0 0 2px">' + esc(e.nom || '') + '</p><p class="card-hint" style="margin-bottom:12px">' + esc(resExtDateLabel(e.date, e.heure)) + '</p>';
+  h += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">' + chip(oui.length, 'viennent', 'var(--green)') + chip(nbExt, 'personnes extérieures', '#b25e12') + chip(non.length, 'ne viennent pas', '#a4302a') + '</div>';
+  if (acts.length) {
+    h += '<p style="font-weight:700;font-size:13px;margin:6px 0">Par activité</p>';
+    acts.forEach(function(a) {
+      var l = oui.filter(function(x) { return x.activites.some(function(y) { return y.id === a.id; }); });
+      h += '<div style="margin-bottom:8px;font-size:13px"><b>🎯 ' + esc(a.nom) + ' (' + l.length + ')</b>' + (l.length ? '<div style="color:var(--text);margin-top:2px">' + l.map(who).join('<br>') + '</div>' : '') + '</div>';
+    });
+    var sans = oui.filter(function(x) { return !x.activites.length; });
+    if (sans.length) h += '<div style="margin-bottom:8px;font-size:13px"><b>⏳ Viennent, activité pas encore choisie (' + sans.length + ')</b><div style="margin-top:2px">' + sans.map(who).join('<br>') + '</div></div>';
+  }
+  h += '<p style="font-weight:700;font-size:13px;margin:14px 0 6px">✅ Viennent (' + oui.length + ')</p><div style="font-size:13px;line-height:1.6">' + (oui.length ? oui.map(who).join('<br>') : '<span style="color:var(--muted)">Personne pour l\'instant</span>') + '</div>';
+  if (non.length) h += '<p style="font-weight:700;font-size:13px;margin:14px 0 6px">❌ Ne viennent pas (' + non.length + ')</p><div style="font-size:13px;line-height:1.6">' + non.map(who).join('<br>') + '</div>';
+  var perDay = {};
+  oui.forEach(function(x) { var d = String(x.at || '').slice(0, 10); if (d) perDay[d] = (perDay[d] || 0) + 1; });
+  var days = Object.keys(perDay).sort().reverse().slice(0, 14);
+  if (days.length) {
+    h += '<p style="font-weight:700;font-size:13px;margin:14px 0 6px">📈 Évolution des inscriptions</p><div style="font-size:12.5px;line-height:1.7;color:var(--text)">' + days.map(function(d) { var p = d.split('-'); return p[2] + '/' + p[1] + ' : +' + perDay[d]; }).join('<br>') + '</div>';
+  }
+  h += '<p class="card-hint" style="margin-top:14px">Page en lecture seule, mise à jour automatiquement.</p>';
+  resExtMessage('Suivi des inscriptions', h);
 }
 
 function resInit() {
@@ -1466,6 +1829,8 @@ function resInit() {
     resDB = firebase.database();
   } catch (e) { resShowError('Impossible de charger la page de réservation pour le moment.'); return; }
 
+  if (RES_SUIVI_ID) { resShowSuivi(RES_SUIVI_ID); return; } // lien de suivi (associée) : lecture seule
+  if (RES_EXT_ID) { resShowExternalEvent(RES_EXT_ID); return; } // lien public d'un événement : aucune identification
   if (!RES_CODE) RES_CODE = resSavedCode();
   if (!RES_CODE) { resShowIdentifyForm(); return; }
   resLoadClientAndListen(false);
