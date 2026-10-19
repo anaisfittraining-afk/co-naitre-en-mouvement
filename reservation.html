@@ -1137,7 +1137,9 @@ function resEvChoix(rec) {
   if (a) return (Array.isArray(a) ? a : Object.keys(a).map(function(k) { return a[k]; })).filter(function(x) { return x && x.id; });
   return rec.activite ? [{ id: rec.activite, nom: rec.activiteNom || '' }] : [];
 }
-// Clic sur une activité : la coche / décoche. Aucune activité cochée = plus de réponse. « Je ne viens pas » = response 'non'.
+// DEUX ÉTAPES : 1) l'adhérente valide d'abord sa présence (« Je viens » / « Je ne viens pas »), 2) seulement ensuite,
+// si l'événement propose des activités, elle choisit la ou les siennes (touche = coche / décoche). Décocher toutes les
+// activités garde sa présence confirmée ; seul « Je ne viens pas » retire sa participation.
 function resEvenementRsvp(id, response, activiteId) {
   if (!resDB || !RES_CODE || !RES_CLIENT) return;
   if (response !== 'oui' && response !== 'non') return;
@@ -1145,19 +1147,14 @@ function resEvenementRsvp(id, response, activiteId) {
   var acts = resEvActivites(ev);
   var choix = [];
   if (response === 'oui' && acts.length) {
-    var act = acts.filter(function(a) { return a.id === activiteId; })[0];
-    if (!act) return;
     var cur = resEvChoix(RES_EV_RSVP[id]).filter(function(c) { return acts.some(function(a) { return a.id === c.id; }); });
-    var already = cur.some(function(c) { return c.id === act.id; });
     var ids = cur.map(function(c) { return c.id; });
-    if (already) ids = ids.filter(function(i) { return i !== act.id; }); else ids.push(act.id);
-    choix = acts.filter(function(a) { return ids.indexOf(a.id) !== -1; }).map(function(a) { return { id: a.id, nom: a.nom }; });
-    if (!choix.length) { // tout décoché : on retire sa réponse
-      delete RES_EV_RSVP[id];
-      resRenderEvenements();
-      resDB.ref('reservations/evenements_rsvp/' + RES_CODE + '/' + id).remove().catch(function() {});
-      return;
+    if (activiteId) {
+      var act = acts.filter(function(a) { return a.id === activiteId; })[0];
+      if (!act) return;
+      if (ids.indexOf(act.id) !== -1) ids = ids.filter(function(i) { return i !== act.id; }); else ids.push(act.id);
     }
+    choix = acts.filter(function(a) { return ids.indexOf(a.id) !== -1; }).map(function(a) { return { id: a.id, nom: a.nom }; });
   }
   var rec = { name: RES_CLIENT.nom || '', response: response, at: new Date().toISOString(), event: ev.nom || '', app: 'resa', activites: choix };
   RES_EV_RSVP[id] = rec; // affichage immédiat, confirmé ensuite par l'écouteur Firebase
@@ -1204,26 +1201,23 @@ function resRenderEvenements() {
     var mine = rec && rec.response;
     var acts = resEvActivites(e);
     out += '<div style="flex:1 1 100%;margin-top:4px">';
-    if (acts.length) {
+    out += '<div class="resa-item-sub" style="font-weight:700;margin-bottom:6px">' + (acts.length ? 'Étape 1 — Seras-tu présente ?' : 'Seras-tu présente ?') + '</div>';
+    out += '<div style="display:flex;gap:8px;flex-wrap:wrap">';
+    out += '<button class="btn-mini' + (mine === 'oui' ? ' positive' : '') + '" style="' + (mine === 'oui' ? 'background:var(--chip);' : '') + '" onclick="resEvenementRsvp(' + jsAttr(e.id) + ',\'oui\')">✅ Je viens</button>';
+    out += '<button class="btn-mini' + (mine === 'non' ? ' danger' : '') + '" style="' + (mine === 'non' ? 'background:#fff5f5;' : '') + '" onclick="resEvenementRsvp(' + jsAttr(e.id) + ',\'non\')">❌ Je ne viens pas</button>';
+    out += '</div>';
+    if (mine) out += '<div class="resa-item-sub" style="margin-top:6px;font-style:italic">Ta réponse : ' + (mine === 'oui' ? '✅ tu viens' : '❌ tu ne viens pas') + ' — tu peux la changer à tout moment.</div>';
+    if (acts.length && mine === 'oui') {
       var choisies = resEvChoix(rec).filter(function(c) { return acts.some(function(a) { return a.id === c.id; }); });
-      out += '<div class="resa-item-sub" style="font-weight:700;margin-bottom:6px">Choisis tes activités (une ou plusieurs) :</div>';
+      out += '<div class="resa-item-sub" style="font-weight:700;margin:12px 0 6px">Étape 2 — Choisis tes activités (une ou plusieurs) :</div>';
       out += '<div style="display:flex;gap:8px;flex-wrap:wrap">';
       acts.forEach(function(a) {
         var on = choisies.some(function(c) { return c.id === a.id; });
         out += '<button class="btn-mini' + (on ? ' positive' : '') + '" style="' + (on ? 'background:var(--chip);' : '') + '" onclick="resEvenementRsvp(' + jsAttr(e.id) + ',\'oui\',' + jsAttr(a.id) + ')">' + (on ? '✅ ' : '') + esc(a.nom) + '</button>';
       });
       out += '</div>';
-      out += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn-mini' + (mine === 'non' ? ' danger' : '') + '" style="' + (mine === 'non' ? 'background:#fff5f5;' : '') + '" onclick="resEvenementRsvp(' + jsAttr(e.id) + ',\'non\')">❌ Je ne viens pas</button></div>';
-      if (choisies.length) out += '<div class="resa-item-sub" style="margin-top:6px;font-style:italic">Ton inscription : ' + choisies.map(function(c) { return '✅ ' + esc(c.nom); }).join(', ') + ' — touche une activité pour l\'ajouter ou la retirer.</div>';
-      else if (mine === 'oui') out += '<div class="resa-item-sub" style="margin-top:6px;font-style:italic;color:#8a5a26">Choisis au moins une activité ci-dessus pour confirmer ta présence.</div>';
-      else if (mine === 'non') out += '<div class="resa-item-sub" style="margin-top:6px;font-style:italic">Ta réponse : ❌ tu ne viens pas — tu peux la changer à tout moment.</div>';
-    } else {
-      out += '<div class="resa-item-sub" style="font-weight:700;margin-bottom:6px">Seras-tu présente ?</div>';
-      out += '<div style="display:flex;gap:8px;flex-wrap:wrap">';
-      out += '<button class="btn-mini' + (mine === 'oui' ? ' positive' : '') + '" style="' + (mine === 'oui' ? 'background:var(--chip);' : '') + '" onclick="resEvenementRsvp(' + jsAttr(e.id) + ',\'oui\')">✅ Je viens</button>';
-      out += '<button class="btn-mini' + (mine === 'non' ? ' danger' : '') + '" style="' + (mine === 'non' ? 'background:#fff5f5;' : '') + '" onclick="resEvenementRsvp(' + jsAttr(e.id) + ',\'non\')">❌ Je ne viens pas</button>';
-      out += '</div>';
-      if (mine) out += '<div class="resa-item-sub" style="margin-top:6px;font-style:italic">Ta réponse : ' + (mine === 'oui' ? '✅ tu viens' : '❌ tu ne viens pas') + ' — tu peux la changer à tout moment.</div>';
+      if (choisies.length) out += '<div class="resa-item-sub" style="margin-top:6px;font-style:italic">Tes activités : ' + choisies.map(function(c) { return '✅ ' + esc(c.nom); }).join(', ') + ' — touche une activité pour l\'ajouter ou la retirer.</div>';
+      else out += '<div class="resa-item-sub" style="margin-top:6px;font-style:italic;color:#8a5a26">Ta présence est confirmée. Choisis maintenant ta ou tes activités.</div>';
     }
     out += '</div>';
     out += '</div>';
@@ -1692,21 +1686,28 @@ function resExtRenderForm() {
   var acts = resEvActivites(e);
   var h = '<p style="font-size:15px;font-weight:700;margin:0 0 2px">' + esc(e.nom || '') + '</p>';
   h += '<p class="card-hint" style="margin-bottom:12px">' + esc(resExtDateLabel(e.date, e.heure)) + (e.payant ? (e.prix ? ' · ' + esc(e.prix) : '') : ' · Offert') + '</p>';
+  if (acts.length) h += '<p class="card-hint" style="font-weight:700;margin-bottom:8px">Étape 1 — Valide ta venue à l\'événement</p>';
   h += '<input type="text" id="extPrenom" class="input-field" placeholder="Prénom" autocomplete="given-name">';
   h += '<input type="text" id="extNom" class="input-field" placeholder="Nom (optionnel)" autocomplete="family-name">';
   h += '<input type="email" id="extEmail" class="input-field" placeholder="Email" autocomplete="email">';
   h += '<input type="tel" id="extTel" class="input-field" placeholder="Téléphone (optionnel)" autocomplete="tel">';
-  if (acts.length) {
-    h += '<p class="card-hint" style="margin:14px 0 6px">Choisis la ou les activités qui t\'intéressent :</p>';
-    acts.forEach(function(a, i) {
-      h += '<label style="display:flex;gap:9px;align-items:center;padding:9px 12px;border:1.5px solid var(--border);border-radius:12px;margin-bottom:6px;font-size:14px;cursor:pointer"><input type="checkbox" class="extAct" value="' + esc(a.id) + '" data-nom="' + esc(a.nom) + '"> ' + esc(a.nom) + '</label>';
-    });
-  }
   h += '<label style="display:flex;gap:9px;align-items:flex-start;margin:14px 0 4px;font-size:12.5px;color:var(--muted);line-height:1.5;cursor:pointer"><input type="checkbox" id="extConsent" style="margin-top:3px"> J\'accepte que mes coordonnées soient utilisées par Anaïs pour m\'envoyer les informations sur cet événement et ses prochaines propositions. Je peux me désinscrire à tout moment.</label>';
-  h += '<button class="btn-confirm" id="extSubmitBtn" onclick="resExtSubmit()" style="margin-top:12px">Je m\'inscris</button>';
+  h += '<button class="btn-confirm" id="extSubmitBtn" onclick="resExtSubmit()" style="margin-top:12px">' + (acts.length ? 'Valider ma venue' : 'Je m\'inscris') + '</button>';
   h += '<div class="book-error" id="extError"></div>';
   resExtMessage('Inscription à l\'événement', h);
 }
+function resExtRenderActivites() {
+  var e = RES_EXT_EVENT, acts = resEvActivites(e), p = RES_EXT_PERSON;
+  var h = '<p style="font-size:15px;font-weight:700;margin:0 0 4px">✅ Ta venue est validée, ' + esc(p.prenom) + ' !</p>';
+  h += '<p class="card-hint" style="font-weight:700;margin:10px 0 8px">Étape 2 — Choisis ta ou tes activités (une ou plusieurs) :</p>';
+  acts.forEach(function(a) {
+    h += '<label style="display:flex;gap:9px;align-items:center;padding:9px 12px;border:1.5px solid var(--border);border-radius:12px;margin-bottom:6px;font-size:14px;cursor:pointer"><input type="checkbox" class="extAct" value="' + esc(a.id) + '" data-nom="' + esc(a.nom) + '"> ' + esc(a.nom) + '</label>';
+  });
+  h += '<button class="btn-confirm" id="extActsBtn" onclick="resExtActsSubmit()" style="margin-top:12px">Valider mes activités</button>';
+  h += '<div class="book-error" id="extError"></div>';
+  resExtMessage('Inscription à l\'événement', h);
+}
+var RES_EXT_PERSON = null;
 function resExtError(msg) { var el = document.getElementById('extError'); if (!el) return; el.textContent = msg; el.style.display = msg ? 'block' : 'none'; }
 function resExtSubmit() {
   var e = RES_EXT_EVENT;
@@ -1720,31 +1721,50 @@ function resExtSubmit() {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { resExtError('Indique une adresse e-mail valide.'); return; }
   var consent = document.getElementById('extConsent');
   if (!consent || !consent.checked) { resExtError('Coche la case d\'accord pour continuer.'); return; }
-  var acts = [];
-  Array.prototype.forEach.call(document.querySelectorAll('.extAct'), function(c) { if (c.checked) acts.push({ id: c.value, nom: c.getAttribute('data-nom') || '' }); });
   var btn = document.getElementById('extSubmitBtn');
   if (btn) { btn.disabled = true; btn.textContent = 'Envoi…'; }
   var nowIso = new Date().toISOString();
-  var rec = { prenom: prenom, nom: nom, email: email, telephone: tel, activites: acts, source: RES_EXT_SRC, event: e.nom || '', consent: true, at: nowIso };
+  var hasActs = resEvActivites(e).length > 0;
+  RES_EXT_PERSON = { prenom: prenom, nom: nom, email: email, telephone: tel };
+  var rec = { prenom: prenom, nom: nom, email: email, telephone: tel, source: RES_EXT_SRC, event: e.nom || '', consent: true, at: nowIso };
   resDB.ref('reservations/evenements_externes/' + e.id + '/' + resExtKey(email)).transaction(function(cur) {
-    // Si la personne se ré-inscrit avec le même e-mail, on met à jour ses choix sans doublon.
+    // Si la personne se ré-inscrit avec le même e-mail, on met à jour sans doublon et on garde ses activités déjà choisies.
     var first = cur && cur.firstAt ? cur.firstAt : nowIso;
-    return Object.assign({}, rec, { firstAt: first, source: RES_EXT_SRC || (cur && cur.source) || '' });
+    return Object.assign({}, rec, { activites: (cur && cur.activites) || [], firstAt: first, source: RES_EXT_SRC || (cur && cur.source) || '' });
   }).then(function() {
-    var link = e.lienCrm || (e.payant ? RES_EV_LINK : '');
-    if (link) {
-      var q = 'first_name=' + encodeURIComponent(prenom) + '&last_name=' + encodeURIComponent(nom) + '&email=' + encodeURIComponent(email) + '&phone=' + encodeURIComponent(tel) +
-        '&evenement=' + encodeURIComponent(e.nom || '') + '&evenement_date=' + encodeURIComponent(e.date || '') + '&activites=' + encodeURIComponent(acts.map(function(a) { return a.nom; }).join(', ')) + '&source=' + encodeURIComponent(RES_EXT_SRC);
-      var url = resNormalizeUrl(link) + (link.indexOf('?') === -1 ? '?' : '&') + q;
-      resExtMessage('Merci ' + prenom + ' !', '<p class="card-hint">Ton inscription est bien enregistrée. Dernière étape : on te redirige vers la page de confirmation…</p><a class="btn-confirm" style="display:block;text-align:center;text-decoration:none" href="' + esc(url) + '">Continuer</a>');
-      setTimeout(function() { window.location.href = url; }, 1800);
-    } else {
-      resExtMessage('Merci ' + prenom + ' !', '<p class="card-hint">Ton inscription à « ' + esc(e.nom || '') + ' » est bien enregistrée (' + esc(resExtDateLabel(e.date, e.heure)) + '). Anaïs te recontactera avec les informations pratiques. À très vite !</p>');
-    }
+    if (hasActs) resExtRenderActivites(); else resExtFinish([]);
   }).catch(function(err) {
-    if (btn) { btn.disabled = false; btn.textContent = 'Je m\'inscris'; }
+    if (btn) { btn.disabled = false; btn.textContent = hasActs ? 'Valider ma venue' : 'Je m\'inscris'; }
     resExtError('Impossible d\'enregistrer ton inscription pour le moment — réessaie dans un instant.');
   });
+}
+// Étape 2 : enregistrement des activités choisies (facultatif : on peut valider sans en cocher).
+function resExtActsSubmit() {
+  var e = RES_EXT_EVENT, p = RES_EXT_PERSON;
+  if (!e || !resDB || !p) return;
+  var acts = [];
+  Array.prototype.forEach.call(document.querySelectorAll('.extAct'), function(c) { if (c.checked) acts.push({ id: c.value, nom: c.getAttribute('data-nom') || '' }); });
+  var btn = document.getElementById('extActsBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Envoi…'; }
+  resDB.ref('reservations/evenements_externes/' + e.id + '/' + resExtKey(p.email) + '/activites').set(acts).then(function() {
+    resExtFinish(acts);
+  }).catch(function() {
+    if (btn) { btn.disabled = false; btn.textContent = 'Valider mes activités'; }
+    resExtError('Impossible d\'enregistrer tes activités pour le moment — réessaie dans un instant.');
+  });
+}
+function resExtFinish(acts) {
+  var e = RES_EXT_EVENT, p = RES_EXT_PERSON;
+  var link = e.lienCrm || (e.payant ? RES_EV_LINK : '');
+  if (link) {
+    var q = 'first_name=' + encodeURIComponent(p.prenom) + '&last_name=' + encodeURIComponent(p.nom) + '&email=' + encodeURIComponent(p.email) + '&phone=' + encodeURIComponent(p.telephone) +
+      '&evenement=' + encodeURIComponent(e.nom || '') + '&evenement_date=' + encodeURIComponent(e.date || '') + '&activites=' + encodeURIComponent(acts.map(function(a) { return a.nom; }).join(', ')) + '&source=' + encodeURIComponent(RES_EXT_SRC);
+    var url = resNormalizeUrl(link) + (link.indexOf('?') === -1 ? '?' : '&') + q;
+    resExtMessage('Merci ' + p.prenom + ' !', '<p class="card-hint">Ton inscription est bien enregistrée. Dernière étape : on te redirige vers la page de confirmation…</p><a class="btn-confirm" style="display:block;text-align:center;text-decoration:none" href="' + esc(url) + '">Continuer</a>');
+    setTimeout(function() { window.location.href = url; }, 1800);
+  } else {
+    resExtMessage('Merci ' + p.prenom + ' !', '<p class="card-hint">Ton inscription à « ' + esc(e.nom || '') + ' » est bien enregistrée (' + esc(resExtDateLabel(e.date, e.heure)) + ')' + (acts.length ? ' avec : ' + esc(acts.map(function(a) { return a.nom; }).join(', ')) : '') + '. Anaïs te recontactera avec les informations pratiques. À très vite !</p>');
+  }
 }
 
 // ── SUIVI DES INSCRIPTIONS (lecture seule) pour l'associée d'Anaïs : lien reservation.html?suivi=<idÉvénement>&k=<clé>
