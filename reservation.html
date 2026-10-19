@@ -1163,13 +1163,13 @@ function resEvenementRsvp(id, response, activiteId) {
     alert('Erreur lors de l\'enregistrement de ta réponse : ' + (err && err.message ? err.message : 'inconnue'));
   });
 }
-function resEvenementDateLabel(date, heure) {
+function resEvenementDateLabel(date, heure, heureFin) {
   var p = String(date || '').split('-').map(Number);
   if (p.length !== 3 || !p[0]) return esc(date || '');
   var d = new Date(p[0], p[1] - 1, p[2]);
   var jours = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
   var mois = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
-  return jours[d.getDay()] + ' ' + p[2] + ' ' + mois[p[1] - 1] + (heure ? ' à ' + String(heure).replace(':', 'h') : '');
+  return jours[d.getDay()] + ' ' + p[2] + ' ' + mois[p[1] - 1] + (heure ? (heureFin ? ' de ' + String(heure).replace(':', 'h') + ' à ' + String(heureFin).replace(':', 'h') : ' à ' + String(heure).replace(':', 'h')) : '');
 }
 function resRenderEvenements() {
   var card = document.getElementById('evenementsCard');
@@ -1192,7 +1192,7 @@ function resRenderEvenements() {
     else { statut = '💶 Payant' + (e.prix ? ' — ' + esc(e.prix) : ''); }
     out += '<div class="resa-item" style="align-items:flex-start;flex-wrap:wrap">';
     out += '<div class="resa-item-info"><b>' + esc(e.nom) + '</b>';
-    out += '<div class="resa-item-sub">' + resEvenementDateLabel(e.date, e.heure) + '</div>';
+    out += '<div class="resa-item-sub">' + resEvenementDateLabel(e.date, e.heure, e.heureFin) + '</div>';
     out += '<div class="resa-item-sub" style="font-weight:700;color:' + (offert ? 'var(--green)' : '#8a5a26') + '">' + statut + '</div></div>';
     if (offert) out += '<div class="resa-item-sub" style="max-width:190px">Rien à régler pour toi.</div>';
     else if (RES_EV_LINK) out += '<a class="btn-mini positive" style="text-decoration:none" href="' + esc(RES_EV_LINK) + '" target="_blank" rel="noopener">S\'inscrire et régler</a>';
@@ -1648,13 +1648,13 @@ var RES_EXT_ID = RES_EXT_PARAMS.get('evenement') || '';
 var RES_EXT_SRC = (RES_EXT_PARAMS.get('src') || '').replace(/[^\w\- ]/g, '').slice(0, 40);
 var RES_EXT_EVENT = null;
 function resExtKey(email) { return String(email || '').toLowerCase().trim().replace(/[.#$\/\[\]]/g, '_'); }
-function resExtDateLabel(date, heure) {
+function resExtDateLabel(date, heure, heureFin) {
   var p = String(date || '').split('-').map(Number);
   if (p.length !== 3 || !p[0]) return String(date || '');
   var d = new Date(p[0], p[1] - 1, p[2]);
   var jours = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
   var mois = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
-  return jours[d.getDay()] + ' ' + p[2] + ' ' + mois[p[1] - 1] + ' ' + p[0] + (heure ? ' à ' + String(heure).replace(':', 'h') : '');
+  return jours[d.getDay()] + ' ' + p[2] + ' ' + mois[p[1] - 1] + ' ' + p[0] + (heure ? (heureFin ? ' de ' + String(heure).replace(':', 'h') + ' à ' + String(heureFin).replace(':', 'h') : ' à ' + String(heure).replace(':', 'h')) : '');
 }
 function resExtMessage(title, html) {
   document.getElementById('extEventCard').style.display = '';
@@ -1685,7 +1685,7 @@ function resExtRenderForm() {
   var e = RES_EXT_EVENT;
   var acts = resEvActivites(e);
   var h = '<p style="font-size:15px;font-weight:700;margin:0 0 2px">' + esc(e.nom || '') + '</p>';
-  h += '<p class="card-hint" style="margin-bottom:12px">' + esc(resExtDateLabel(e.date, e.heure)) + (e.payant ? (e.prix ? ' · ' + esc(e.prix) : '') : ' · Offert') + '</p>';
+  h += '<p class="card-hint" style="margin-bottom:12px">' + esc(resExtDateLabel(e.date, e.heure, e.heureFin)) + (e.payant ? (e.prix ? ' · ' + esc(e.prix) : '') : ' · Offert') + '</p>';
   if (acts.length) h += '<p class="card-hint" style="font-weight:700;margin-bottom:8px">Étape 1 — Valide ta venue à l\'événement</p>';
   h += '<input type="text" id="extPrenom" class="input-field" placeholder="Prénom" autocomplete="given-name">';
   h += '<input type="text" id="extNom" class="input-field" placeholder="Nom (optionnel)" autocomplete="family-name">';
@@ -1763,7 +1763,7 @@ function resExtFinish(acts) {
     resExtMessage('Merci ' + p.prenom + ' !', '<p class="card-hint">Ton inscription est bien enregistrée. Dernière étape : on te redirige vers la page de confirmation…</p><a class="btn-confirm" style="display:block;text-align:center;text-decoration:none" href="' + esc(url) + '">Continuer</a>');
     setTimeout(function() { window.location.href = url; }, 1800);
   } else {
-    resExtMessage('Merci ' + p.prenom + ' !', '<p class="card-hint">Ton inscription à « ' + esc(e.nom || '') + ' » est bien enregistrée (' + esc(resExtDateLabel(e.date, e.heure)) + ')' + (acts.length ? ' avec : ' + esc(acts.map(function(a) { return a.nom; }).join(', ')) : '') + '. Anaïs te recontactera avec les informations pratiques. À très vite !</p>');
+    resExtMessage('Merci ' + p.prenom + ' !', '<p class="card-hint">Ton inscription à « ' + esc(e.nom || '') + ' » est bien enregistrée (' + esc(resExtDateLabel(e.date, e.heure, e.heureFin)) + ')' + (acts.length ? ' avec : ' + esc(acts.map(function(a) { return a.nom; }).join(', ')) : '') + '. Anaïs te recontactera avec les informations pratiques. À très vite !</p>');
   }
 }
 
@@ -1819,7 +1819,7 @@ function resSuiviRender() {
   acts.forEach(function(a) { known[a.id] = a.nom; });
   function chip(n, label, color) { return '<div style="flex:1 1 90px;background:var(--chip);border-radius:12px;padding:10px 12px;text-align:center"><div style="font-size:22px;font-weight:700;color:' + color + '">' + n + '</div><div style="font-size:11.5px;color:var(--muted)">' + label + '</div></div>'; }
   function who(x) { return esc(x.name) + ' <span style="color:var(--muted);font-size:11.5px">(' + esc(x.origin) + ')</span>'; }
-  var h = '<p style="font-size:15px;font-weight:700;margin:0 0 2px">' + esc(e.nom || '') + '</p><p class="card-hint" style="margin-bottom:12px">' + esc(resExtDateLabel(e.date, e.heure)) + '</p>';
+  var h = '<p style="font-size:15px;font-weight:700;margin:0 0 2px">' + esc(e.nom || '') + '</p><p class="card-hint" style="margin-bottom:12px">' + esc(resExtDateLabel(e.date, e.heure, e.heureFin)) + '</p>';
   h += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">' + chip(oui.length, 'viennent', 'var(--green)') + chip(nbExt, 'personnes extérieures', '#b25e12') + chip(non.length, 'ne viennent pas', '#a4302a') + '</div>';
   if (acts.length) {
     h += '<p style="font-weight:700;font-size:13px;margin:6px 0">Par activité</p>';
