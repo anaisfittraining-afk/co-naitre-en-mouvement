@@ -392,7 +392,7 @@ function eventCardHtml(e, passee) {
   var isOpen = !!OPEN_IDS['ev-' + e.id];
   var o = '<div class="slot-card' + (passee ? ' passee' : '') + (isOpen ? ' open' : '') + '" id="evcard-' + esc(e.id) + '">';
   o += '<div class="slot-head" onclick="toggleEvCard(' + jsAttr(e.id) + ')"><div class="slot-info"><div class="slot-date">' + esc(e.nom || '') + '</div>';
-  o += '<div class="slot-sub">' + esc(fmtDateFriendly(e.date)) + (e.heure ? ' · ' + esc(e.heure) : '') + '</div>';
+  o += '<div class="slot-sub">' + esc(fmtDateFriendly(e.date)) + (e.heure ? ' · ' + esc(e.heure) + (e.heureFin ? '–' + esc(e.heureFin) : '') : '') + '</div>';
   o += '<div><span class="ev-badge">' + pub + '</span>' + (e.exterieur ? '<span class="ev-badge ext">🌐 Ouvert aux extérieures</span>' : '') + '</div></div>';
   o += '<div class="slot-occ"><div class="n">' + oui.length + '</div><div class="cap">viennent' + (nbExt ? ' · dont ' + nbExt + ' ext.' : '') + '</div></div><div class="chevron">▾</div></div>';
   o += '<div class="slot-body">';
