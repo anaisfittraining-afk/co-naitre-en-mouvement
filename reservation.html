@@ -720,14 +720,14 @@ function resRenderCarte() {
     if (restantes <= 0) {
       out += '<div class="carte-renew urgent" style="display:block">' +
         '<div>⚠️ Ta carte' + (types.length > 1 ? (' ' + resTypeLabel(type).toLowerCase()) : '') + ' est épuisée — renouvelle-la pour continuer à réserver.</div>' +
-        '<a class="renew-btn" href="https://reservation.oamafernet.com/pilateshybride-458251" target="_blank" rel="noopener">🔄 Renouveler ma carte</a>' +
-        '<div class="renew-code">Code à utiliser : <b>RENOUVELLEMENT26</b></div>' +
+        '<a class="renew-btn" href="' + esc(resRenewHref()) + '" target="_blank" rel="noopener">🔄 Renouveler ma carte</a>' +
+        resRenewCodeLine() +
         '</div>';
     } else if (restantes <= 2) {
       out += '<div class="carte-renew" style="display:block">' +
         '<div>⚠️ Plus que ' + restantes + ' séance' + (restantes > 1 ? 's' : '') + (types.length > 1 ? (' sur ta carte ' + resTypeLabel(type).toLowerCase()) : ' sur ta carte') + ' — pense à la renouveler dès maintenant.</div>' +
-        '<a class="renew-btn" href="https://reservation.oamafernet.com/pilateshybride-458251" target="_blank" rel="noopener">🔄 Renouveler ma carte</a>' +
-        '<div class="renew-code">Code à utiliser : <b>RENOUVELLEMENT26</b></div>' +
+        '<a class="renew-btn" href="' + esc(resRenewHref()) + '" target="_blank" rel="noopener">🔄 Renouveler ma carte</a>' +
+        resRenewCodeLine() +
         '</div>';
     }
   });
@@ -1466,6 +1466,34 @@ var RES_CRM_LINK_DEFAULT = {
   en_ligne: 'https://reservation.oamafernet.com/pilatesenligne-671200'
 };
 var RES_CRM_LINK = { desvres: '', fitness_park: '', en_ligne: '' };
+// ── Nouveau tunnel d'inscription (tunnel.html) : tant que l'interrupteur du tableau de bord
+// (🎯 Acquisition → Mes tunnels) n'est pas activé (acquisition/config/remplaceCrm), RIEN ne change :
+// les liens du CRM restent utilisés. Une fois activé, les inscriptions et les renouvellements de carte
+// envoient vers tunnel.html. ──
+var RES_TUNNEL = { loaded: false, on: false, base: 'https://anaisfittraining-afk.github.io/co-naitre-en-mouvement/tunnel.html' };
+function resTunnelUrl(lieu, extra) {
+  var b = RES_TUNNEL.base;
+  return b + (b.indexOf('?') < 0 ? '?' : '&') + 'f=' + encodeURIComponent(lieu || 'desvres') + (extra || '');
+}
+function resLoadTunnelConfig() {
+  if (!resDB) return;
+  resDB.ref('acquisition/config').on('value', function(sn) {
+    var c = sn.val() || {};
+    RES_TUNNEL.on = c.remplaceCrm === true;
+    if (c.baseUrl) RES_TUNNEL.base = String(c.baseUrl).replace(/\s+/g, '');
+    RES_TUNNEL.loaded = true;
+    try { if (typeof resRenderProspectBrowse === 'function') resRenderProspectBrowse(); } catch (e) {}
+    try { if (RES_CLIENT && typeof resRenderAll === 'function') resRenderAll(); } catch (e) {}
+  });
+}
+// Lien « Renouveler ma carte » : le tunnel (formules carte présélectionnées) ou, à défaut, le CRM actuel.
+function resRenewHref() {
+  if (RES_TUNNEL.on) return resTunnelUrl((RES_CLIENT && RES_CLIENT.lieu) || 'desvres', '&renew=1' + (RES_CLIENT && RES_CLIENT.nom ? '&nom=' + encodeURIComponent(RES_CLIENT.nom) : '') + (RES_CLIENT && RES_CLIENT.email ? '&email=' + encodeURIComponent(RES_CLIENT.email) : ''));
+  return 'https://reservation.oamafernet.com/pilateshybride-458251';
+}
+function resRenewCodeLine() {
+  return RES_TUNNEL.on ? '' : '<div class="renew-code">Code à utiliser : <b>RENOUVELLEMENT26</b></div>';
+}
 var RES_CRM_LINK_LOADED = { desvres: false, fitness_park: false, en_ligne: false };
 var RES_CRM_LINK_FIELD = { desvres: 'crmInscriptionLinkDesvres', fitness_park: 'crmInscriptionLinkFitnessPark', en_ligne: 'crmInscriptionLinkEnLigne' };
 var RES_PROSPECT_CRENEAUX_LISTENING = false;
@@ -1534,7 +1562,7 @@ function resRenderProspectBrowse() {
     body.innerHTML = '<div class="empty-slots">Aucun créneau à venir pour ce choix — contacte Anaïs, ou reviens un peu plus tard 🙂</div>';
     return;
   }
-  if (!RES_CRM_LINK[RES_PROSPECT_LIEU]) {
+  if (!RES_CRM_LINK[RES_PROSPECT_LIEU] && !RES_TUNNEL.on) {
     body.innerHTML = '<p class="book-error" style="display:block">Le lien d\'inscription n\'est pas encore configuré — contacte Anaïs directement pour t\'inscrire.</p>';
     return;
   }
@@ -1568,12 +1596,17 @@ function resRenderProspectBrowse() {
 function resProspectChooseSlot(slotId) {
   var slot = RES_CRENEAUX[slotId];
   var link = RES_CRM_LINK[RES_PROSPECT_LIEU];
-  if (!slot || !link) return;
+  if (!slot || (!link && !RES_TUNNEL.on)) return;
   var prenom = (document.getElementById('identifyPrenom').value || '').trim();
   var email = (document.getElementById('identifyEmail').value || '').trim();
   var tel = (document.getElementById('identifyTelephone').value || '').trim();
   if (!prenom || !email) {
     window.alert('Merci de renseigner ton prénom et ton email avant de choisir un créneau.');
+    return;
+  }
+  if (RES_TUNNEL.on) {
+    window.location.href = resTunnelUrl(RES_PROSPECT_LIEU, '&nom=' + encodeURIComponent(prenom) + '&email=' + encodeURIComponent(email) +
+      (tel ? '&tel=' + encodeURIComponent(tel) : '') + '&creneau=' + encodeURIComponent(slotId) + '&src=appli');
     return;
   }
   var url = link + (link.indexOf('?') === -1 ? '?' : '&') +
@@ -1847,6 +1880,7 @@ function resInit() {
   try {
     if (!firebase.apps || !firebase.apps.length) firebase.initializeApp(RES_FIREBASE_CONFIG);
     resDB = firebase.database();
+    try { resLoadTunnelConfig(); } catch (e) {}
   } catch (e) { resShowError('Impossible de charger la page de réservation pour le moment.'); return; }
 
   if (RES_SUIVI_ID) { resShowSuivi(RES_SUIVI_ID); return; } // lien de suivi (associée) : lecture seule
