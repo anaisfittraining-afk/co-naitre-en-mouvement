@@ -222,6 +222,22 @@ h1, h2, h3 { font-family: 'Fraunces', serif; font-optical-sizing: auto; }
     <div class="card-body" id="liveCardBody"></div>
   </div>
 
+  <!-- MESSAGERIE AVEC ANAÏS (ajoutée le 05/11/2026) : la cliente écrit, Anaïs répond depuis son tableau de bord.
+       Chemin Firebase séparé : epanouissement_global/messagerie/mouv_<code>/{msgs,meta}. Voir resMsg*(). -->
+  <div class="card collapsed" id="msgCard" style="display:none">
+    <div class="card-header toggle" onclick="resToggleCard('msgCard')">
+      <span class="accent">💬</span><h2>Écrire à Anaïs</h2>
+      <span class="card-count" id="msgCount"></span><span class="chevron">▾</span>
+    </div>
+    <div class="card-body">
+      <p class="card-hint">Une question, un souci d'horaire, un coup de mou ? Écris-lui ici, elle te répond dès qu'elle le peut (ce n'est pas un chat en direct).</p>
+      <div id="msgThread" style="max-height:46vh;overflow-y:auto;margin-bottom:10px"></div>
+      <textarea id="msgInput" class="input-field" maxlength="2000" placeholder="Écris ton message…" style="min-height:84px;resize:vertical;font-family:inherit"></textarea>
+      <button class="btn-confirm" id="msgSendBtn" onclick="resMsgSend()" style="margin-top:10px">Envoyer</button>
+      <div class="card-hint" id="msgStatus" style="margin:8px 0 0"></div>
+    </div>
+  </div>
+
   <!-- CARTE(S) : compteur de séances (clientes "à la carte" uniquement) — une adhérente peut avoir
        jusqu'à 2 cartes en parallèle (ex. présentiel + en ligne), chacune avec son propre solde ; le
        contenu est entièrement généré par resRenderCarte() pour s'adapter au nombre de cartes détenues. -->
@@ -1621,6 +1637,71 @@ function resProspectChooseSlot(slotId) {
   window.location.href = url;
 }
 
+
+// ── 💬 Messagerie avec la coach (05/11/2026) ─────────────────────────────────────────────────────
+// Chemin neuf et séparé du reste : epanouissement_global/messagerie/mouv_<code>/msgs/<id> = { from, text, ts }
+// et .../meta = { name, email, app:'mouvement', lastTs, lastFrom, lastText, clientReadTs, coachReadTs }.
+// Aucune donnée existante n'est lue ni modifiée.
+var RES_MSG = null, RES_MSG_MARK_AT = 0;
+function resMsgPath() { return 'epanouissement_global/messagerie/mouv_' + RES_CODE; }
+function resMsgList() {
+  var m = (RES_MSG && RES_MSG.msgs) || {};
+  return Object.keys(m).map(function(k) { return m[k] || {}; }).filter(function(x) { return x.text; }).sort(function(a, b) { return (a.ts || 0) - (b.ts || 0); });
+}
+function resMsgUnread() {
+  var rd = (RES_MSG && RES_MSG.meta && RES_MSG.meta.clientReadTs) || 0;
+  return resMsgList().filter(function(x) { return x.from === 'coach' && (x.ts || 0) > rd; }).length;
+}
+function resMsgFmt(ts) {
+  if (!ts) return '';
+  var d = new Date(ts), p = function(n) { return (n < 10 ? '0' : '') + n; };
+  return p(d.getDate()) + '/' + p(d.getMonth() + 1) + ' · ' + p(d.getHours()) + ':' + p(d.getMinutes());
+}
+function resMsgRender() {
+  var card = document.getElementById('msgCard'); if (!card || !RES_CODE) return;
+  card.style.display = '';
+  var n = resMsgUnread(), cnt = document.getElementById('msgCount');
+  if (cnt) cnt.textContent = n ? (n + ' nouveau' + (n > 1 ? 'x' : '')) : '';
+  if (n && card.classList.contains('collapsed') && !card.__autoOpened) { card.classList.remove('collapsed'); card.__autoOpened = true; }
+  var box = document.getElementById('msgThread'); if (!box) return;
+  var list = resMsgList();
+  box.innerHTML = list.length ? list.map(function(x) {
+    var mine = x.from !== 'coach';
+    return '<div style="display:flex;justify-content:' + (mine ? 'flex-end' : 'flex-start') + ';margin:0 0 10px"><div style="max-width:84%;padding:10px 13px;border-radius:' + (mine ? '16px 16px 4px 16px' : '16px 16px 16px 4px') + ';background:' + (mine ? '#E7EEE1' : '#FBF6EC') + ';border:1px solid ' + (mine ? '#CFE0C9' : '#E6C9AE') + '">' +
+      (mine ? '' : '<div style="font-size:11px;font-weight:700;color:#B96A46;margin-bottom:2px">Anaïs</div>') +
+      '<div style="font-size:14.5px;line-height:1.5;white-space:pre-wrap;word-break:break-word">' + esc(x.text) + '</div>' +
+      '<div style="font-size:10.5px;color:#66735F;margin-top:4px;text-align:right">' + esc(resMsgFmt(x.ts)) + '</div></div></div>';
+  }).join('') : '<p class="card-hint" style="text-align:center">Aucun message pour l\'instant.</p>';
+  box.scrollTop = box.scrollHeight;
+  // « lu » seulement quand la carte est ouverte
+  if (n && !card.classList.contains('collapsed') && resDB && Date.now() - RES_MSG_MARK_AT > 2000) {
+    RES_MSG_MARK_AT = Date.now();
+    try { resDB.ref(resMsgPath() + '/meta/clientReadTs').set(firebase.database.ServerValue.TIMESTAMP).catch(function() {}); } catch (e) {}
+  }
+}
+function resMsgListen() {
+  if (!resDB || !RES_CODE) return;
+  resDB.ref(resMsgPath()).on('value', function(s) { RES_MSG = s.val() || null; resMsgRender(); });
+  var hd = document.querySelector('#msgCard .card-header');
+  if (hd) hd.addEventListener('click', function() { setTimeout(resMsgRender, 0); });
+}
+function resMsgSend() {
+  var st = document.getElementById('msgStatus'), ta = document.getElementById('msgInput'), btn = document.getElementById('msgSendBtn');
+  var text = ta ? ta.value.trim() : '';
+  if (!text) { if (st) st.textContent = 'Écris d\'abord ton message.'; return; }
+  if (!resDB || !RES_CODE) { if (st) st.textContent = 'Connexion impossible pour le moment — réessaie dans un instant.'; return; }
+  btn.disabled = true; st.textContent = 'Envoi…';
+  var TS = firebase.database.ServerValue.TIMESTAMP, base = resMsgPath();
+  var meta = { lastTs: TS, lastFrom: 'cliente', lastText: text.slice(0, 140), app: 'mouvement' };
+  if (RES_CLIENT && RES_CLIENT.nom) meta.name = RES_CLIENT.nom;
+  if (RES_CLIENT && RES_CLIENT.email) meta.email = RES_CLIENT.email;
+  resDB.ref(base + '/msgs').push({ from: 'cliente', text: text.slice(0, 2000), ts: TS }).then(function() {
+    return resDB.ref(base + '/meta').update(meta);
+  }).then(function() {
+    ta.value = ''; st.textContent = '✅ Message envoyé à Anaïs.'; btn.disabled = false;
+  }).catch(function() { st.textContent = '⚠️ Message non envoyé — vérifie ta connexion et réessaie (ton texte est conservé).'; btn.disabled = false; });
+}
+
 // Charge la fiche de RES_CODE et attache les écouteurs en direct — utilisé aussi bien pour un lien
 // personnel (?code=xxx) que juste après une identification par email réussie.
 function resLoadClientAndListen(fromIdentify) {
@@ -1659,6 +1740,7 @@ function resLoadClientAndListen(fromIdentify) {
       resRenderEvenements();
     });
     resFetchEvenementLink();
+    resMsgListen();
     resDB.ref('reservations/evenements_rsvp/' + RES_CODE).on('value', function(s) {
       RES_EV_RSVP = s.val() || {};
       resRenderEvenements();
