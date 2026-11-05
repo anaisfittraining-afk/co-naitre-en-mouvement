@@ -365,7 +365,7 @@ function eLoadSlots(){
     var url='https://www.googleapis.com/calendar/v3/calendars/'+encodeURIComponent(A.calendarId)+'/events?key='+encodeURIComponent(A.apiKey)+'&timeMin='+encodeURIComponent(new Date(now).toISOString())+'&timeMax='+encodeURIComponent(new Date(now+(hor+2)*86400000).toISOString())+'&singleEvents=true&orderBy=startTime&maxResults=250';
     pBusy=fetch(url).then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(j){(j.items||[]).forEach(function(ev){if(ev.status==='cancelled'||ev.transparency==='transparent')return;var s=ev.start&&(ev.start.dateTime||ev.start.date),e=ev.end&&(ev.end.dateTime||ev.end.date);if(!s||!e)return;var a=ev.start.dateTime?Date.parse(s):parisTs(s,'00:00'),b=ev.end.dateTime?Date.parse(e):parisTs(e,'00:00');busy.push([a,b])})}).catch(function(){ES.calOk=false});
   }
-  var pBook=db?db.ref('acquisition/appels').once('value').then(function(sn){var v=sn.val()||{};Object.keys(v).forEach(function(k){var m=k.match(/^(\d{4}-\d{2}-\d{2})_(\d{2})(\d{2})$/);if(m){var a=parisTs(m[1],m[2]+':'+m[3]);booked.push([a,a+((v[k]&&v[k].dur)||dur)*60000])}})}).catch(function(){}):Promise.resolve();
+  var pBook=db?db.ref('acquisition/appels').once('value').then(function(sn){var v=sn.val()||{};Object.keys(v).forEach(function(k){var m=k.match(/^(\d{4}-\d{2}-\d{2})_(\d{2})(\d{2})$/);if(m&&v[k]&&v[k].pending&&(Date.now()-Date.parse(v[k].at||0)>1800000))m=null;if(m){var a=parisTs(m[1],m[2]+':'+m[3]);booked.push([a,a+((v[k]&&v[k].dur)||dur)*60000])}})}).catch(function(){}):Promise.resolve();
   Promise.all([pBusy,pBook]).then(function(){
     var keys=['dim','lun','mar','mer','jeu','ven','sam'],out=[],t0=parisParts(now).ds,p0=t0.split('-').map(Number);
     for(var i=0;i<=hor;i++){
@@ -384,18 +384,36 @@ function eLoadSlots(){
     ES.slots=out;ES.loading=false;eRender(true);
   });
 }
+// Guidance : une fois le créneau confirmé (et payé s'il y a un paiement), la demande arrive dans « Réservations à valider »
+function eToValidate(leadId,d,s,paid){
+  if(!db||!leadId||!s||F.aValider!==true)return; // plus de validation manuelle : la réservation (payée) s'affiche directement sur l'accueil
+  var ref=db.ref('reservations/pendingValidations/'+leadId);
+  ref.once('value').then(function(p){
+    if(p.val())return;
+    var rec={nom:d.nom||ES.nom||'',email:d.email||ES.email||'',telephone:d.telephone||ES.tel||'',lieu:'en_ligne',creneauId:'',creneauDate:s.date,creneauHeure:s.hm,rdvDuree:s.dur,rdvTs:new Date(s.ts).toISOString(),objectif:d.objectif||ES.objectif||'',offre:F.rdvNom||F.nom||'Guidance',type:'guidance',funnel:FID,source:'tunnel',leadId:leadId,createdAt:new Date().toISOString(),status:'en_attente'};
+    if(paid){rec.paiement='paye';rec.paidAt=new Date().toISOString();rec.montant=F.paiementPrix||''}
+    ref.set(rec);
+  }).catch(function(){});
+}
 function eBook(){
   var s=ES.slot;if(!s||ES.busy)return;ES.busy=true;ES.err='';eRender(true);
-  var key=s.date+'_'+s.hm.replace(':','');
-  db.ref('acquisition/appels/'+key).transaction(function(c){return c?undefined:{leadId:ES.leadId,dur:s.dur,at:new Date().toISOString()}}).then(function(r){
+  var key=s.date+'_'+s.hm.replace(':',''),pay=String(F.paiementLien||'').trim();
+  db.ref('acquisition/appels/'+key).transaction(function(c){
+    var stale=c&&c.pending&&(Date.now()-Date.parse(c.at||0)>1800000); // retenue non payée depuis plus de 30 min : le créneau est libéré
+    return (c&&!stale)?undefined:{leadId:ES.leadId,dur:s.dur,at:new Date().toISOString(),pending:!!pay};
+  }).then(function(r){
     if(!r.committed){ES.busy=false;ES.slot=null;ES.err='Ce créneau vient d\'être pris. Choisis-en un autre.';eLoadSlots();return}
-    return db.ref('acquisition/leads/'+ES.leadId).update({status:'rdv',rdvDate:s.date,rdvHeure:s.hm,rdvDuree:s.dur,rdvTs:new Date(s.ts).toISOString(),vu:false,updatedAt:new Date().toISOString()}).then(function(){
-      var pay=String(F.paiementLien||'').trim();
-      if(pay){
-        try{localStorage.setItem('sfm_tunnel_lead',JSON.stringify({id:ES.leadId,f:FID,at:Date.now(),appel:1}))}catch(e){}
-        return db.ref('acquisition/leads/'+ES.leadId).update({paiement:'attente',paiementMontant:F.paiementPrix||''}).then(function(){location.href=pay+(pay.indexOf('?')<0?'?':'&')+'prefilled_email='+encodeURIComponent(ES.email)+'&client_reference_id='+encodeURIComponent(ES.leadId)});
-      }
-      ES.busy=false;ES.step='merci';eRender();window.scrollTo(0,0);tMail('rdv',{leadId:ES.leadId,nom:ES.nom,email:ES.email,tel:ES.tel,date_rdv:eLongDate(s.date,s.hm),heure_rdv:s.hm.replace(':','h'),lien_agenda:eGcal()})});
+    var now=new Date().toISOString();
+    if(pay){
+      // Paiement d'abord : on retient le créneau mais on ne l'enregistre PAS comme rendez-vous (ni notification, ni e-mail) avant le retour de Stripe
+      try{localStorage.setItem('sfm_tunnel_lead',JSON.stringify({id:ES.leadId,f:FID,at:Date.now(),appel:1}))}catch(e){}
+      return db.ref('acquisition/leads/'+ES.leadId).update({status:'paiement_ouvert',paiement:'attente',paiementMontant:F.paiementPrix||'',rdvAttente:{date:s.date,hm:s.hm,dur:s.dur,ts:new Date(s.ts).toISOString()},updatedAt:now}).then(function(){
+        location.href=pay+(pay.indexOf('?')<0?'?':'&')+'prefilled_email='+encodeURIComponent(ES.email)+'&client_reference_id='+encodeURIComponent(ES.leadId)});
+    }
+    return db.ref('acquisition/leads/'+ES.leadId).update({status:'rdv',rdvDate:s.date,rdvHeure:s.hm,rdvDuree:s.dur,rdvTs:new Date(s.ts).toISOString(),vu:false,updatedAt:now}).then(function(){
+      ES.busy=false;ES.step='merci';eRender();window.scrollTo(0,0);
+      eToValidate(ES.leadId,{nom:ES.nom,email:ES.email,telephone:ES.tel,objectif:ES.objectif},s,false);
+      tMail('rdv',{leadId:ES.leadId,nom:ES.nom,email:ES.email,tel:ES.tel,date_rdv:eLongDate(s.date,s.hm),heure_rdv:s.hm.replace(':','h'),lien_agenda:eGcal()})});
   }).catch(function(){ES.busy=false;ES.err='Un souci de connexion est survenu. Réessaie dans un instant.';eRender(true)});
 }
 // ---------- rendu ----------
@@ -459,7 +477,7 @@ var GRILLE=null,CTR_URL_DEFAULT='https://anaisfittraining-afk.github.io/tableaud
 function eNum(t){var m=String(t==null?'':t).replace(/\s/g,'').match(/\d+(?:[.,]\d+)?/);return m?m[0].replace(',','.'):''}
 // Tarif mensuel du contrat : grille tarifaire (si la formule y est reliée), sinon tarif saisi, sinon prix affiché
 function eTarif(o){
-  if(o.grille&&GRILLE&&GRILLE.abo){var v=GRILLE.abo['conseille'+(o.engagement==='12mois'?'12':'4')];if(v!==''&&v!=null)return String(v)}
+  if(o.grille&&GRILLE&&GRILLE.abo){var v=GRILLE.abo[(o.formuleContrat==='bilanmensuel'?'reduite':'conseille')+(o.engagement==='12mois'?'12':'4')];if(v!==''&&v!=null)return String(v)}
   if(o.tarif!=null&&o.tarif!=='')return String(o.tarif);
   return eNum(o.prix);
 }
@@ -528,7 +546,7 @@ function eEnsureContract(){
   if(ES.cid&&ES.contract&&ES.contract.contratCode){ES.ctrCode=ES.contract.contratCode;return db.ref('contrats/'+ES.ctrCode+'/adresse').once('value').then(function(sn){if(!sn.val())return db.ref('contrats/'+ES.ctrCode).update({adresse:ES.adresse})})}
   var parts=ES.nom.trim().split(/\s+/),prenom=parts.shift()||'',nom=parts.join(' ')||prenom;
   var ej=o.essaiJours!=null?o.essaiJours:(F.essaiJours||0);
-  var rec={nom:nom,prenom:prenom,adresse:ES.adresse,email:ES.email,telephone:ES.tel,sexe:'f',formule:'complete',offer:o.engagement==='12mois'?'12mois':'4mois',tarifBase:eTarif(o),tarifRemise:'',montantAici:'',resteCharge:'',essaiJours:Math.max(0,parseInt(ej,10)||0),essaiTexte:F.essaiTexte||'',source:'tunnel',funnel:FID,leadId:ES.leadId||''};
+  var rec={nom:nom,prenom:prenom,adresse:ES.adresse,email:ES.email,telephone:ES.tel,sexe:'f',formule:(o.formuleContrat==='bilanmensuel'||o.formuleContrat==='reduite')?o.formuleContrat:'complete',offer:o.engagement==='12mois'?'12mois':'4mois',tarifBase:eTarif(o),tarifRemise:'',montantAici:'',resteCharge:'',essaiJours:Math.max(0,parseInt(ej,10)||0),essaiTexte:F.essaiTexte||'',source:'tunnel',funnel:FID,leadId:ES.leadId||''};
   if(!ES.ctrCode){
     var slug=function(t){return String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'')};
     ES.ctrCode=(slug(prenom)+slug(nom)||'contrat')+Math.random().toString(36).slice(2,6);
@@ -604,8 +622,9 @@ function eFin(paid){
 }
 function eMerciAppel(rec){
   document.body.classList.add('e');
+  var slotOf=function(d){var w=d&&(d.rdvAttente||(d.rdvTs?{date:d.rdvDate,hm:d.rdvHeure,dur:d.rdvDuree,ts:d.rdvTs}:null));if(!w)return null;var ts=Date.parse(w.ts),dur=+w.dur||30;return {date:w.date,hm:w.hm,dur:dur,ts:ts,end:ts+dur*60000}};
   var done=function(d){
-    if(d&&d.rdvTs){var ts=Date.parse(d.rdvTs),dur=+d.rdvDuree||30;ES.slot={date:d.rdvDate,hm:d.rdvHeure,dur:dur,ts:ts,end:ts+dur*60000}}
+    ES.slot=slotOf(d);
     ES.nom=(d&&d.nom)||ES.nom;ES.email=(d&&d.email)||'';ES.tel=(d&&d.telephone)||'';
     var h=eHead()+(ES.slot?'<section class="e-sec"><div class="card">'+eAppelMerciCard()+'</div></section>':'<div class="card big"><div class="em">🌿</div><h2>Merci '+esc(eFirst())+' !</h2><p class="hint">'+esc(F.merciTexte||'Ton paiement est bien reçu. Anaïs te confirme ton rendez-vous très vite.')+'</p></div>');
     h+=eAbout()+eFoot();
@@ -615,10 +634,14 @@ function eMerciAppel(rec){
     var now=new Date().toISOString();
     db.ref('acquisition/leads/'+rec.id).once('value').then(function(sn){var d=sn.val();if(!d){done(null);return}
       ES.leadId=rec.id;
+      var s=slotOf(d);
       if(d.paiement!=='paye'){
-        db.ref('acquisition/leads/'+rec.id).update({paiement:'paye',paidAt:now,updatedAt:now,vu:false});
-        if(d.rdvTs){var ts=Date.parse(d.rdvTs),dur=+d.rdvDuree||30;ES.slot={date:d.rdvDate,hm:d.rdvHeure,dur:dur,ts:ts,end:ts+dur*60000};
-          tMail('rdv',{leadId:rec.id,nom:d.nom,email:d.email,tel:d.telephone,date_rdv:eLongDate(d.rdvDate,d.rdvHeure),heure_rdv:d.rdvHeure.replace(':','h'),lien_agenda:eGcal()})}
+        // C'est seulement ICI (page de remerciement) que le rendez-vous est enregistré et que les notifications partent
+        var u={paiement:'paye',paidAt:now,status:'rdv',updatedAt:now,vu:false};
+        if(s){u.rdvDate=s.date;u.rdvHeure=s.hm;u.rdvDuree=s.dur;u.rdvTs=new Date(s.ts).toISOString();u.rdvAttente=null}
+        db.ref('acquisition/leads/'+rec.id).update(u);
+        if(s){db.ref('acquisition/appels/'+s.date+'_'+s.hm.replace(':','')).update({pending:false,leadId:rec.id});
+          ES.slot=s;eToValidate(rec.id,d,s,true);tMail('rdv',{leadId:rec.id,nom:d.nom,email:d.email,tel:d.telephone,date_rdv:eLongDate(s.date,s.hm),heure_rdv:s.hm.replace(':','h'),lien_agenda:eGcal()})}
       }
       try{localStorage.removeItem('sfm_tunnel_lead')}catch(e){}
       done(d);
