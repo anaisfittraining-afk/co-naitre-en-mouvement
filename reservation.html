@@ -1486,13 +1486,32 @@ var RES_CRM_LINK = { desvres: '', fitness_park: '', en_ligne: '' };
 // (🎯 Acquisition → Mes tunnels) n'est pas activé (acquisition/config/remplaceCrm), RIEN ne change :
 // les liens du CRM restent utilisés. Une fois activé, les inscriptions et les renouvellements de carte
 // envoient vers tunnel.html. ──
-var RES_TUNNEL = { loaded: false, on: false, base: 'https://anaisfittraining-afk.github.io/co-naitre-en-mouvement/tunnel.html' };
+var RES_TUNNEL = { loaded: false, on: false, ready: {}, readyWatch: false, base: 'https://anaisfittraining-afk.github.io/co-naitre-en-mouvement/tunnel.html' };
 function resTunnelUrl(lieu, extra) {
   var b = RES_TUNNEL.base;
   return b + (b.indexOf('?') < 0 ? '?' : '&') + 'f=' + encodeURIComponent(lieu || 'desvres') + (extra || '');
 }
+// Le tunnel n'est utilisé pour un lieu QUE s'il a au moins une formule avec un lien de paiement enregistré ;
+// sinon on reste sur le lien du CRM actuel (un tunnel sans paiement validerait des inscriptions sans payer).
+// Test sans allumer l'interrupteur : ouvrir l'appli avec « ?tunnel=test » dans l'adresse (pour toi seulement).
+var RES_TUNNEL_TEST = /[?&]tunnel=test(&|$)/.test(location.search);
+function resTunnelFor(lieu) { return (RES_TUNNEL.on || RES_TUNNEL_TEST) && RES_TUNNEL.ready[lieu || 'desvres'] === true; }
+function resTunnelRerender() {
+  try { if (typeof resRenderProspectBrowse === 'function') resRenderProspectBrowse(); } catch (e) {}
+  try { if (RES_CLIENT && typeof resRenderAll === 'function') resRenderAll(); } catch (e) {}
+}
 function resLoadTunnelConfig() {
   if (!resDB) return;
+  if (!RES_TUNNEL.readyWatch) {
+    RES_TUNNEL.readyWatch = true;
+    ['desvres', 'fitness_park', 'en_ligne'].forEach(function(l) {
+      resDB.ref('acquisition/funnels/' + l + '/offres').on('value', function(sn) {
+        var o = sn.val() || {};
+        RES_TUNNEL.ready[l] = Object.keys(o).some(function(k) { return o[k] && o[k].actif !== false && o[k].lien; });
+        resTunnelRerender();
+      });
+    });
+  }
   resDB.ref('acquisition/config').on('value', function(sn) {
     var c = sn.val() || {};
     RES_TUNNEL.on = c.remplaceCrm === true;
@@ -1504,11 +1523,11 @@ function resLoadTunnelConfig() {
 }
 // Lien « Renouveler ma carte » : le tunnel (formules carte présélectionnées) ou, à défaut, le CRM actuel.
 function resRenewHref() {
-  if (RES_TUNNEL.on) return resTunnelUrl((RES_CLIENT && RES_CLIENT.lieu) || 'desvres', '&renew=1' + (RES_CLIENT && RES_CLIENT.nom ? '&nom=' + encodeURIComponent(RES_CLIENT.nom) : '') + (RES_CLIENT && RES_CLIENT.email ? '&email=' + encodeURIComponent(RES_CLIENT.email) : ''));
+  if (resTunnelFor((RES_CLIENT && RES_CLIENT.lieu) || 'desvres')) return resTunnelUrl((RES_CLIENT && RES_CLIENT.lieu) || 'desvres', '&renew=1' + (RES_CLIENT && RES_CLIENT.nom ? '&nom=' + encodeURIComponent(RES_CLIENT.nom) : '') + (RES_CLIENT && RES_CLIENT.email ? '&email=' + encodeURIComponent(RES_CLIENT.email) : ''));
   return 'https://reservation.oamafernet.com/pilateshybride-458251';
 }
 function resRenewCodeLine() {
-  return RES_TUNNEL.on ? '' : '<div class="renew-code">Code à utiliser : <b>RENOUVELLEMENT26</b></div>';
+  return resTunnelFor((RES_CLIENT && RES_CLIENT.lieu) || 'desvres') ? '' : '<div class="renew-code">Code à utiliser : <b>RENOUVELLEMENT26</b></div>';
 }
 var RES_CRM_LINK_LOADED = { desvres: false, fitness_park: false, en_ligne: false };
 var RES_CRM_LINK_FIELD = { desvres: 'crmInscriptionLinkDesvres', fitness_park: 'crmInscriptionLinkFitnessPark', en_ligne: 'crmInscriptionLinkEnLigne' };
@@ -1578,7 +1597,7 @@ function resRenderProspectBrowse() {
     body.innerHTML = '<div class="empty-slots">Aucun créneau à venir pour ce choix — contacte Anaïs, ou reviens un peu plus tard 🙂</div>';
     return;
   }
-  if (!RES_CRM_LINK[RES_PROSPECT_LIEU] && !RES_TUNNEL.on) {
+  if (!RES_CRM_LINK[RES_PROSPECT_LIEU] && !resTunnelFor(RES_PROSPECT_LIEU)) {
     body.innerHTML = '<p class="book-error" style="display:block">Le lien d\'inscription n\'est pas encore configuré — contacte Anaïs directement pour t\'inscrire.</p>';
     return;
   }
@@ -1612,7 +1631,7 @@ function resRenderProspectBrowse() {
 function resProspectChooseSlot(slotId) {
   var slot = RES_CRENEAUX[slotId];
   var link = RES_CRM_LINK[RES_PROSPECT_LIEU];
-  if (!slot || (!link && !RES_TUNNEL.on)) return;
+  if (!slot || (!link && !resTunnelFor(RES_PROSPECT_LIEU))) return;
   var prenom = (document.getElementById('identifyPrenom').value || '').trim();
   var email = (document.getElementById('identifyEmail').value || '').trim();
   var tel = (document.getElementById('identifyTelephone').value || '').trim();
@@ -1620,7 +1639,7 @@ function resProspectChooseSlot(slotId) {
     window.alert('Merci de renseigner ton prénom et ton email avant de choisir un créneau.');
     return;
   }
-  if (RES_TUNNEL.on) {
+  if (resTunnelFor(RES_PROSPECT_LIEU)) {
     window.location.href = resTunnelUrl(RES_PROSPECT_LIEU, '&nom=' + encodeURIComponent(prenom) + '&email=' + encodeURIComponent(email) +
       (tel ? '&tel=' + encodeURIComponent(tel) : '') + '&creneau=' + encodeURIComponent(slotId) + '&src=appli');
     return;
