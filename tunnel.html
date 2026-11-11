@@ -79,6 +79,9 @@ body.e,html:has(body.e){background:#FBF8EE}
 .e-hero h1 em,.e-about h2 em{font-style:italic;color:var(--rose);font-weight:500}
 .e-intro{margin-top:14px;font-size:16.5px;color:var(--text);max-width:34ch}
 .e-badge{display:inline-block;margin-top:16px;background:var(--chip);color:var(--green);border-radius:999px;padding:8px 14px;font-size:12.5px;font-weight:700}
+.e-ctaw{text-align:center;padding:4px 0 8px}.e-ctaw .btn{margin-top:6px}.e-ctaw small{display:block;margin-top:8px;color:var(--muted);font-size:13px}
+.e-sticky{position:fixed;left:0;right:0;bottom:0;z-index:60;padding:10px 16px calc(10px + env(safe-area-inset-bottom));background:rgba(251,248,238,.97);border-top:1px solid #E2DCC8;box-shadow:0 -6px 18px rgba(44,68,50,.08);transform:translateY(110%);transition:transform .25s}.e-sticky.on{transform:none}.e-sticky .btn{display:block;max-width:568px;margin:0 auto}
+@media (prefers-reduced-motion:reduce){.e-sticky{transition:none}}
 .e-cta{background:var(--rose);margin-top:20px}.e-cta:hover{background:#a55c3b}
 .e-welcome{background:var(--green);color:#FBF8EE;border-radius:14px;padding:12px 16px;font-family:'Fraunces',serif;font-size:19px;margin:4px 0 10px}
 .e-sec{margin:22px 0}
@@ -534,6 +537,10 @@ var NF={
   ],
   insta:"@Anais_fernet_personaltrainer",fb:"Anaïs Fernet"
 };
+function eCta(){if(!eNF())return '';return '<section class="e-sec e-ctaw"><button class="btn e-cta" onclick="eScroll()">'+esc(F.cta||'Réserver mon appel')+'</button><small>Gratuit · 30 minutes · sans engagement</small></section>'}
+function eStickyHtml(){if(!eNF())return '';return '<div class="e-sticky" id="estk"><button class="btn e-cta" style="margin-top:0" onclick="eScroll()">'+esc(F.cta||'Réserver mon appel')+'</button></div>'}
+function eStickyUpd(){var k=document.getElementById('estk'),r=document.getElementById('resa');if(!k||!r){return}var hb=document.querySelector('.e-hero .e-cta'),vh=window.innerHeight||700,rt=r.getBoundingClientRect().top,hbb=hb?hb.getBoundingClientRect().bottom:-1;k.classList.toggle('on',hbb<0&&rt>vh*0.75)}
+function eStickyInit(){if(!window.__eStk){window.__eStk=1;window.addEventListener('scroll',eStickyUpd,{passive:true});window.addEventListener('resize',eStickyUpd)}eStickyUpd()}
 function eNF(){return F&&F.type==='appel'&&F.nouveauFormat!==false}
 function eBaseDir(){return location.href.replace(/[?#].*$/,'').replace(/[^\/]*$/,'')}
 function eGuideUrl(){return F.guideUrl||(eBaseDir()+'guide-preparation-appel.pdf')}
@@ -645,7 +652,7 @@ function eAppel(keep){
   eKeepFields();
   if(F.active===false&&!Q.get('apercu'))return eClosed(F.fermeMsg||'Les appels ne sont pas ouverts pour le moment');
   if(ES.step==='merci'&&ES.slot){root().innerHTML='<div class="wrap e-wrap">'+eHead()+'<section class="e-sec"><div class="card">'+eAppelMerciCard()+'</div></section>'+eAbout()+eFoot()+'</div>';if(!keep)window.scrollTo(0,0);return}
-  var h=eHead()+eHero(true,F.cta||'Réserver mon appel')+eBenefits()+eDeroule()+eResultats()+ePourQui()+eTemoins()+eQuote();
+  var h=eHead()+eHero(true,F.cta||'Réserver mon appel')+eBenefits()+eDeroule()+eCta()+eResultats()+ePourQui()+eCta()+eTemoins()+eCta()+eQuote();
   if(F.note)h+='<div class="alert">'+esc(F.note)+'</div>';
   h+='<section class="e-sec" id="resa"><div class="card">';
   var A=F.agenda||{};
@@ -670,9 +677,10 @@ function eAppel(keep){
   }else{
     h+=eAppelMerciCard();
   }
-  h+='</div></section>'+eFaq()+eAbout()+'<section class="e-sec" style="text-align:center"><button class="btn e-cta" onclick="eScroll()">'+esc(F.cta||'Réserver mon appel')+'</button></section>'+eFoot();
+  h+='</div></section>'+eFaq()+eAbout()+'<section class="e-sec" style="text-align:center"><button class="btn e-cta" onclick="eScroll()">'+esc(F.cta||'Réserver mon appel')+'</button></section>'+eFoot()+eStickyHtml();
   root().innerHTML='<div class="wrap e-wrap">'+h+'</div>';
   if(!keep)window.scrollTo(0,0);
+  eStickyInit();
 }
 function eObjLabel(){return String(F.objLabel||'Le sujet que tu veux aborder').replace(/\s*\(\s*facultatif\s*\)/ig,'').trim()}
 function eInfosNext(){
