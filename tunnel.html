@@ -98,6 +98,57 @@ body.e,html:has(body.e){background:#FBF8EE}
 .e-sig{border:1.5px dashed var(--green-light);border-radius:12px;background:#fff;padding:4px;text-align:right}
 .e-sig canvas{display:block;width:100%;height:150px;touch-action:none;cursor:crosshair}
 @media (max-width:420px){.e-about{grid-template-columns:90px 1fr}.e-about img{width:90px;height:120px}}
+
+/* ── Nouveau format « Ton appel Bilan » (guide de préparation) ── */
+.e-h2{font-size:clamp(23px,6.4vw,30px);line-height:1.12;color:var(--green);font-weight:500;margin-bottom:6px;text-wrap:balance}
+.e-sub{color:var(--muted);font-size:13.5px;margin:2px 0 14px}
+.e-tl{display:grid;gap:14px;margin-top:14px}
+.e-tl-i{display:flex;gap:14px;align-items:flex-start}
+.e-tl-i .n{flex:0 0 28px;height:28px;border-radius:50%;background:var(--green);color:#FBF8EE;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-top:1px}
+.e-tl-i.warm .n{background:var(--rose)}
+.e-tl-i b{display:block;font-family:'Fraunces',serif;font-weight:500;font-size:17px;color:var(--green)}
+.e-tl-i small{display:block;color:var(--muted);font-size:13.5px;margin-top:2px}
+.e-cards{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.e-card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px 14px 15px}
+.e-card .d{display:block;width:26px;height:26px;border-radius:50% 50% 50% 4px;margin-bottom:10px}
+.e-card .d0{background:#7D9A78}.e-card .d1{background:#C9795A}.e-card .d2{background:#2F4A3A}.e-card .d3{background:#EBD3C5}.e-card .d4{background:#D7E2D0}.e-card .d5{background:#E8B49A}
+.e-card b{display:block;font-family:'Fraunces',serif;font-weight:500;font-size:16px;line-height:1.2;color:var(--green);margin-bottom:5px}
+.e-card span{display:block;color:var(--muted);font-size:13px;line-height:1.4}
+@media (max-width:440px){.e-cards{grid-template-columns:1fr}}
+.e-two{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:14px}
+@media (max-width:560px){.e-two{grid-template-columns:1fr;gap:18px}}
+.e-two h3{font-family:'Fraunces',serif;font-weight:500;font-size:17px;margin-bottom:8px}
+.e-two h3.yes{color:var(--green)}.e-two h3.no{color:var(--rose)}
+.e-ul{list-style:none;display:grid;gap:9px}
+.e-ul li{position:relative;padding-left:22px;font-size:13.5px;line-height:1.4;color:var(--text)}
+.e-ul li:before{position:absolute;left:0;top:0;font-weight:700}
+.e-ul.yes li:before{content:"✓";color:var(--green)}.e-ul.no li:before{content:"×";color:var(--rose);font-size:16px;line-height:1.15}
+.e-warn{margin-top:16px;background:#F3D9CC;border-radius:14px;padding:13px 15px;font-size:13px;line-height:1.45;color:#6B3A24}
+.e-warn b{display:block;font-family:'Fraunces',serif;font-weight:500;font-size:15px;margin-bottom:3px;color:#5A2F1C}
+.e-dark{background:var(--green);border-radius:16px;padding:20px 18px;color:#FBF8EE}
+.e-dark i{font-family:'Fraunces',serif;font-size:19px;line-height:1.35;font-style:italic}
+.e-testi{display:block;width:100%;border-radius:14px;border:1px solid var(--border);margin-top:12px;background:#fff}
+.e-social{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;margin-top:12px;font-size:13px}
+.e-social span{font-size:10.5px;letter-spacing:2px;text-transform:uppercase;color:#E9B9A0;font-weight:700;align-self:center}
+.e-social b{color:#FBF8EE;font-weight:500}
+.e-prep .btn{margin-top:14px}
+.e-wait{text-align:center}
+.e-cd-l{font-size:11px;letter-spacing:2.4px;text-transform:uppercase;font-weight:700;color:var(--rose);min-height:14px}
+.e-cd{font-family:'Fraunces',serif;font-size:clamp(28px,8.4vw,38px);font-weight:500;color:var(--green);margin:6px 0 4px;line-height:1.1}
+.e-cd-s{font-size:13px;color:var(--muted);min-height:18px;margin-bottom:10px}
+.e-wait .recap{text-align:left}
+.e-wait .btn.go{background:var(--rose);animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(185,106,70,.45)}50%{box-shadow:0 0 0 9px rgba(185,106,70,0)}}
+@media (prefers-reduced-motion:reduce){.e-wait .btn.go{animation:none}}
+.e-cnt{display:inline-block;margin-left:6px;font-family:'Karla',sans-serif;font-size:12px;font-weight:700;background:var(--chip);color:var(--green);border-radius:999px;padding:3px 10px;vertical-align:middle}
+.e-chk{display:flex;gap:12px;align-items:flex-start;background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:13px 14px;margin-top:10px;cursor:pointer}
+.e-chk input{margin-top:3px;width:20px;height:20px;accent-color:var(--green);flex:0 0 20px}
+.e-chk.on{background:var(--chip);border-color:var(--green-light)}
+.e-chk b{display:block;font-family:'Fraunces',serif;font-weight:500;font-size:16.5px;color:var(--green)}
+.e-chk small{display:block;font-size:13px;color:var(--muted);margin-top:3px;line-height:1.4}
+.e-chk a{display:inline-block;margin-top:6px;font-size:13px;color:var(--rose);font-weight:700}
+.e-q{margin-top:14px}.e-q b{display:block;font-size:14px;color:var(--green);margin-bottom:6px;font-weight:700}
+.e-q textarea{font-size:15px;resize:vertical;min-height:74px}
 </style>
 </head>
 <body>
@@ -420,6 +471,7 @@ function eBook(){
 function eRender(keep){
   if(!F)return;
   document.body.classList.add('e');
+  if(Q.get('salle')&&F.type==='appel')return eSalle(keep);
   if(Q.get('merci'))return eMerci();
   if(F.type==='appel')return eAppel(keep);
   return eVente(keep);
@@ -427,10 +479,173 @@ function eRender(keep){
 function eKeepFields(){var g=function(i){var e=document.getElementById(i);return e?e.value:null},v;
   if((v=g('e-nom'))!==null)ES.nom=v;if((v=g('e-email'))!==null)ES.email=v;if((v=g('e-tel'))!==null)ES.tel=v;if((v=g('e-adr'))!==null)ES.adresse=v;if((v=g('e-obj'))!==null)ES.objectif=v;
   var c=document.getElementById('e-consent');if(c)ES.consent=c.checked;var a=document.getElementById('e-accept');if(a)ES.accept=a.checked;if((v=g('e-signnom'))!==null)ES.signNom=v}
+// ═══════════════ NOUVEAU FORMAT « Ton appel Bilan » (guide de préparation) : déroulé, pour qui, témoignages, préparation, salle d'attente ═══════════════
+var NF={
+  deroule:[
+    ["On fait connaissance","Qui tu es, comment se passent tes journées, ce que tu portes au quotidien."],
+    ["Où tu en es aujourd'hui","Ton énergie, ton corps, ton sommeil, ta charge mentale, la place que tu te laisses."],
+    ["Où tu veux aller","Comment tu voudrais te sentir, ce que tu veux retrouver, la femme que tu veux devenir."],
+    ["Ce qui te freine","Les obstacles qui t'empêchent d'y arriver seule, sans jugement."],
+    ["Si c'est un oui pour nous deux","Je t'explique comment co-Naître peut t'accompagner, étape par étape."],
+    ["Ta décision","Tu prends le temps qu'il te faut. Dans tous les cas, tu repars avec un plan d'action."]
+  ],
+  pour:[
+    "Tu te sens fatiguée et dépassée, avec l'impression de ne plus avoir de temps pour toi.",
+    "Tu as le sentiment de t'être effacée derrière ton rôle de maman, de compagne, de celle qui porte tout.",
+    "Tu ne reconnais plus ton corps ni la femme que tu es devenue.",
+    "Tu as déjà testé des méthodes qui n'ont pas tenu, ou pas fonctionné.",
+    "Tu as la ferme intention de te remettre en haut de ta liste de priorités.",
+    "Tu es prête à démarrer maintenant, pas dans six mois.",
+    "Tu sais prendre des décisions, seule et rapidement.",
+    "Tu veux un accompagnement qui s'adapte à ta vie de famille chargée.",
+    "Tu veux retrouver un équilibre physique et mental, sans culpabilité."
+  ],
+  pasPour:[
+    "Tu es déjà épanouie et tu as trouvé ton équilibre.",
+    "Tu changes de méthode ou de programme toutes les semaines.",
+    "Tu penses que rien n'est de ta faute et tu ne veux faire aucun effort pour sortir de tes habitudes.",
+    "Tu te trouves toujours de bonnes excuses pour ne pas suivre les recommandations.",
+    "Tu cherches un « summer body » ou un « wedding body », sans vision à long terme.",
+    "Tu viens seulement chercher des informations, sans vouloir t'investir.",
+    "Tu préfères rêver de la femme que tu voudrais être plutôt qu'agir pour le devenir."
+  ],
+  violences:["Tu as vécu des violences ou une relation destructrice ?","Parle-m'en lors de l'appel, à ton rythme. Mon accompagnement vient en complément des professionnels et structures spécialisés, jamais à leur place. En cas de danger, le 3919 (Violences Femmes Info) est gratuit et anonyme."],
+  etapes:[
+    ["Bloque ton rendez-vous dans ton agenda","Sors ton agenda maintenant, pour ne pas l'oublier parmi tout ce que tu as à penser en tant que maman. J'ai bloqué un créneau rien que pour toi, et j'y serai. Si tu dois le déplacer ou l'annuler, préviens-moi : sans prévenir, il ne sera possible ni de le décaler, ni d'en reprendre un second."],
+    ["Prépare Google Meet","Notre Bilan se fait en visio, c'est plus convivial. Télécharge l'application et crée ton compte si ce n'est pas déjà fait. Connecte-toi de préférence depuis un ordinateur, et pile à l'heure : je t'attendrai déjà. Installe-toi dans un endroit calme pour être 100 % avec moi."],
+    ["Remplis le formulaire","Tu vas le recevoir avant l'appel. Il ne prend que quelques minutes et il me permet d'adapter notre échange et mes conseils à ta situation."],
+    ["Lis la suite du guide","Tu y trouveras des questions pour te préparer, et la présentation de l'accompagnement co-Naître."]
+  ],
+  questions:[
+    "Comment je me sens vraiment en ce moment, dans mon corps, mon énergie, mon sommeil ?",
+    "À quels moments ai-je le sentiment de n'exister que pour les autres ?",
+    "Qu'ai-je déjà essayé, et pourquoi cela n'a-t-il pas tenu ?",
+    "Qu'est-ce qui me pèse le plus au quotidien : charge mentale, organisation, culpabilité, fatigue ?",
+    "Si dans quelques mois tout allait mieux, qu'est-ce qui serait différent dans ma vie ?",
+    "Qu'est-ce que je suis prête à changer, et de quoi ai-je besoin pour le faire ?"
+  ],
+  resultats:[
+    ["De l'énergie","Tu sors du mode survie : ton énergie remonte, ton corps se renforce, ton quotidien s'allège."],
+    ["Un sommeil et une sérénité retrouvés","Moins de stress, plus d'ancrage, des nuits plus réparatrices et des journées plus calmes."],
+    ["Un corps avec lequel tu fais la paix","Tu bouges par plaisir, tu changes ton regard sur toi et tu sors de la culpabilité."],
+    ["Une confiance solide","Tu t'écoutes, tu te fais confiance, tu te coaches toi-même dans les moments de doute."],
+    ["Des limites claires","Tu sais dire non, exprimer tes besoins et partager la charge mentale avec ceux que tu aimes."],
+    ["Une direction","Tu recommences à rêver, à te projeter et à construire la femme que tu choisis de devenir."]
+  ],
+  insta:"@Anais_fernet_personaltrainer",fb:"Anaïs Fernet"
+};
+function eNF(){return F&&F.type==='appel'&&F.nouveauFormat!==false}
+function eBaseDir(){return location.href.replace(/[?#].*$/,'').replace(/[^\/]*$/,'')}
+function eGuideUrl(){return F.guideUrl||(eBaseDir()+'guide-preparation-appel.pdf')}
+function eSalleUrl(id){return location.href.replace(/[?#].*$/,'')+'?f='+encodeURIComponent(FID)+'&salle=1&l='+encodeURIComponent(id)}
+function eDeroule(){
+  if(!eNF())return '';
+  return '<section class="e-sec"><div class="e-eye2">Le déroulé</div><h2 class="e-h2">Comment va se passer notre appel</h2><p class="e-sub">Pas de questionnaire froid : une vraie conversation, à ton rythme.</p><div class="e-tl">'
+    +NF.deroule.map(function(x,i){return '<div class="e-tl-i'+(i>=4?' warm':'')+'"><span class="n">'+(i+1)+'</span><div><b>'+esc(x[0])+'</b><small>'+esc(x[1])+'</small></div></div>'}).join('')+'</div></section>';
+}
+function eResultats(){
+  if(!eNF())return '';
+  return '<section class="e-sec"><div class="e-eye2">Ce que tu vas retrouver</div><h2 class="e-h2">Redevenir pleinement toi</h2><div class="e-cards">'
+    +NF.resultats.map(function(x,i){return '<div class="e-card"><i class="d d'+(i%6)+'"></i><b>'+esc(x[0])+'</b><span>'+esc(x[1])+'</span></div>'}).join('')+'</div></section>';
+}
+function ePourQui(){
+  if(!eNF())return '';
+  return '<section class="e-sec"><div class="e-eye2">Pour qui ?</div><h2 class="e-h2">Est-ce que co-Naître est fait pour toi ?</h2><div class="e-two"><div><h3 class="yes">C\'est fait pour toi si…</h3><ul class="e-ul yes">'
+    +NF.pour.map(function(x){return '<li>'+esc(x)+'</li>'}).join('')+'</ul></div><div><h3 class="no">Ce n\'est pas fait pour toi si…</h3><ul class="e-ul no">'
+    +NF.pasPour.map(function(x){return '<li>'+esc(x)+'</li>'}).join('')+'</ul></div></div><div class="e-warn"><b>'+esc(NF.violences[0])+'</b>'+esc(NF.violences[1])+'</div></section>';
+}
+function eTemoins(){
+  if(!eNF())return '';
+  return '<section class="e-sec"><div class="e-eye2">Elles en parlent</div><h2 class="e-h2">Des femmes comme toi</h2><a href="'+eBaseDir()+'temoignages-1.jpg" target="_blank" rel="noopener"><img class="e-testi" src="'+eBaseDir()+'temoignages-1.jpg" alt="Témoignages" loading="lazy" onerror="this.parentNode.style.display=\'none\'"></a><a href="'+eBaseDir()+'temoignages-2.jpg" target="_blank" rel="noopener"><img class="e-testi" src="'+eBaseDir()+'temoignages-2.jpg" alt="Témoignages" loading="lazy" onerror="this.parentNode.style.display=\'none\'"></a></section>';
+}
+function eQuote(){
+  if(!eNF())return '';
+  return '<section class="e-sec"><div class="e-dark"><i>Libérer la femme dans la famille, non pas en l\'éloignant des autres, mais en lui permettant d\'y exister pleinement.</i></div></section>';
+}
+function eSocial(){return '<div class="e-social"><span>Instagram</span><b>'+esc(NF.insta)+'</b><span>Facebook</span><b>'+esc(NF.fb)+'</b></div>'}
+// Après la réservation : ce qu'il faut faire avant l'appel
+function eApresRdv(){
+  if(!eNF())return '';
+  var h='<div class="e-prep"><div class="e-eye2" style="margin-top:22px">Avant notre appel</div><h2 class="e-h2" style="font-size:20px">4 étapes indispensables</h2><div class="e-tl">'
+    +NF.etapes.map(function(x,i){return '<div class="e-tl-i"><span class="n">'+(i+1)+'</span><div><b>'+esc(x[0])+'</b></div></div>'}).join('')+'</div>';
+  if(ES.leadId){try{localStorage.setItem('sfm_prep_lead_'+FID,ES.leadId)}catch(e){}
+    h+='<a class="btn e-cta" style="text-decoration:none;text-align:center" href="'+esc(eSalleUrl(ES.leadId))+'">🚪 Ma salle d\'attente</a><p class="hint" style="text-align:center;margin-top:8px">Tu y retrouves ta préparation, le compte à rebours et le lien de la visio.</p>'}
+  h+='<a class="btn ghost" style="text-decoration:none;text-align:center" href="'+esc(eGuideUrl())+'" target="_blank" rel="noopener">📘 Télécharger mon guide de préparation (PDF)</a></div>';
+  return h;
+}
+// ---------- Salle d'attente ----------
+function eSlotOfLead(d){
+  var w=d&&(d.rdvTs?{ts:d.rdvTs,dur:d.rdvDuree}:(d.rdvAttente?{ts:d.rdvAttente.ts,dur:d.rdvAttente.dur}:null));if(!w||!w.ts)return null;
+  var ts=Date.parse(w.ts);if(isNaN(ts))return null;var dur=+w.dur||+((F.agenda||{}).duree)||30;return {ts:ts,end:ts+dur*60000,dur:dur};
+}
+function eSalle(keep){
+  var id=Q.get('l')||'';try{if(!id)id=localStorage.getItem('sfm_prep_lead_'+FID)||''}catch(e){}
+  var wait=function(m){root().innerHTML='<div class="wrap e-wrap">'+eHead()+'<div class="card big"><div class="em">🌿</div><h2>'+esc(m)+'</h2></div>'+eFoot()+'</div>'};
+  if(!ES.slTried){
+    ES.slTried=true;
+    if(!db||!id){ES.slErr=true}
+    else{wait('Je prépare ta salle d\'attente…');
+      db.ref('acquisition/leads/'+id).once('value').then(function(sn){var d=sn.val();if(d&&d.funnel===FID){ES.sl=d;ES.slId=id;ES.nom=d.nom||'';ES.prepa=d.prepa||{}}else ES.slErr=true;eSalle()}).catch(function(){ES.slErr=true;eSalle()});
+      return;
+    }
+  }
+  var s=ES.sl&&eSlotOfLead(ES.sl);
+  if(ES.slErr||!ES.sl||!s){
+    root().innerHTML='<div class="wrap e-wrap">'+eHead()+'<div class="card big"><div class="em">🌿</div><h2>Je ne retrouve pas ton rendez-vous</h2><p class="hint">Réserve ton appel Bilan, ou écris-moi directement : je te guide.</p><a class="btn" style="text-decoration:none;text-align:center" href="'+esc(location.href.replace(/[?#].*$/,'')+'?f='+FID)+'">Réserver mon appel</a></div>'+eFoot()+'</div>';return;
+  }
+  var A=F.agenda||{},P=ES.prepa||{},et=P.etapes||{},rep=P.rep||{},pp=parisParts(s.ts);
+  var n=0;NF.etapes.forEach(function(x,i){if(et[i+1])n++});
+  var h=eHead()+'<section class="e-hero"><div class="e-eye">Salle d\'attente</div><h1>Ton appel <em>Bilan</em>, '+esc(eFirst())+'</h1><p class="e-intro">Tout est prêt. Voici de quoi arriver sereine, préparée et prête à reprendre ta place.</p></section>'
+   +'<section class="e-sec"><div class="card e-wait"><div class="e-cd-l" id="cdl">Dans</div><div class="e-cd" id="cd">…</div><div class="e-cd-s" id="cds"></div>'
+   +'<div class="recap"><div><span>Quand</span><b>'+esc(eLongDate(pp.ds,pp.hm))+'</b></div><div><span>Durée</span><b>'+s.dur+' min</b></div><div><span>Comment</span><b>'+esc(A.modalite||'Appel')+'</b></div></div>'
+   +(A.lien?'<a class="btn" id="cdbtn" style="text-decoration:none;text-align:center" href="'+esc(A.lien)+'" target="_blank" rel="noopener">🎥 Rejoindre la visio</a>':'<p class="hint" style="text-align:center;margin:10px 0 0">Anaïs t\'appelle (ou t\'envoie le lien de la visio) à l\'heure choisie.</p>')
+   +'<a class="btn ghost" style="text-decoration:none;text-align:center" href="'+eGcal0(s)+'" target="_blank" rel="noopener">📅 Ajouter à mon agenda</a></div></section>'
+   +'<section class="e-sec"><div class="e-eye2">À faire avant l\'appel</div><h2 class="e-h2">4 étapes indispensables <span class="e-cnt" id="pcnt">'+n+' / 4</span></h2>'
+   +NF.etapes.map(function(x,i){return '<label class="e-chk'+(et[i+1]?' on':'')+'" id="pe'+(i+1)+'"><input type="checkbox"'+(et[i+1]?' checked':'')+' onchange="ePrepaChk('+(i+1)+',this.checked)"><span><b>'+esc(x[0])+'</b><small>'+esc(x[1])+'</small>'+(i===1&&A.lien?'<a href="'+esc(A.lien)+'" target="_blank" rel="noopener">Ouvrir le lien de la visio</a>':'')+'</span></label>'}).join('')+'</section>'
+   +'<section class="e-sec"><div class="e-eye2">Pour arriver préparée</div><h2 class="e-h2">6 questions à te poser</h2><p class="e-sub">Pas besoin de réponses parfaites. Note ce qui vient, avec tes mots. Tes réponses se sauvegardent toutes seules : tu peux fermer la page et revenir quand tu veux.</p>'
+   +NF.questions.map(function(q,i){return '<div class="e-q"><b>'+esc(q)+'</b><textarea class="in" rows="3" placeholder="Tes mots…" oninput="ePrepaRep('+(i+1)+',this.value)">'+esc(rep[i+1]||'')+'</textarea></div>'}).join('')
+   +'<p class="e-sub" style="margin-top:6px"><span id="psave"></span></p></section>'
+   +eDeroule()
+   +'<section class="e-sec"><a class="btn ghost" style="text-decoration:none;text-align:center" href="'+esc(eGuideUrl())+'" target="_blank" rel="noopener">📘 Télécharger mon guide de préparation (PDF)</a>'
+   +'<div class="e-warn" style="margin-top:14px"><b>Un empêchement ?</b>Préviens-moi : sans prévenir, il ne sera possible ni de décaler, ni de reprendre un second rendez-vous. Merci de ta compréhension.</div></section>'
+   +'<section class="e-sec"><div class="e-dark"><div class="e-eye" style="color:#E9B9A0">Hâte d\'échanger avec toi !</div><p style="color:#FBF8EE;font-size:14px">En attendant notre appel, tu peux me suivre sur les réseaux.</p>'+eSocial()+'</div></section>'+eFoot();
+  root().innerHTML='<div class="wrap e-wrap">'+h+'</div>';
+  if(!keep)window.scrollTo(0,0);
+  ES.cdEnd=s;if(ES.tk)clearInterval(ES.tk);ES.tk=setInterval(eTick,1000);eTick();
+}
+function eGcal0(s){var z=function(t){return new Date(t).toISOString().replace(/[-:]/g,'').replace(/\.\d+/,'')},A=F.agenda||{};return 'https://calendar.google.com/calendar/render?action=TEMPLATE&text='+encodeURIComponent((F.rdvNom||'Bilan Forme Santé')+' avec Anaïs')+'&dates='+z(s.ts)+'/'+z(s.end)+'&details='+encodeURIComponent((A.modalite||'Appel')+(A.lien?'\n'+A.lien:''))}
+function eTick(){
+  var el=document.getElementById('cd');if(!el){if(ES.tk){clearInterval(ES.tk);ES.tk=0}return}
+  var s=ES.cdEnd,now=Date.now(),d=s.ts-now,l=document.getElementById('cdl'),sub=document.getElementById('cds'),b=document.getElementById('cdbtn');
+  if(d>900000){
+    var j=Math.floor(d/86400000),hh=Math.floor(d%86400000/3600000),mm=Math.floor(d%3600000/60000),ss=Math.floor(d%60000/1000);
+    el.textContent=(j?j+' j ':'')+(j||hh?hh+' h ':'')+mm+' min'+(j?'':' '+ss+' s');if(l)l.textContent='Ton appel est dans';if(sub)sub.textContent='';
+  }else if(d>0){
+    el.textContent='C\'est bientôt l\'heure';if(l)l.textContent='Dans moins de 15 minutes';if(sub)sub.textContent='Installe-toi au calme, connecte-toi quelques minutes avant : je t\'attendrai.';if(b)b.classList.add('go');
+  }else if(now<s.end){
+    el.textContent='C\'est l\'heure !';if(l)l.textContent='Ton appel a commencé';if(sub)sub.textContent='Rejoins-moi, je t\'attends.';if(b)b.classList.add('go');
+  }else{
+    el.textContent='Merci pour notre échange';if(l)l.textContent='';if(sub)sub.textContent='Prends soin de toi. 🌿';
+  }
+}
+function ePrepaSave(path,val){
+  if(!db||!ES.slId)return;var u={};u['prepa/'+path]=val;u['prepa/updatedAt']=new Date().toISOString();u.updatedAt=new Date().toISOString();
+  db.ref('acquisition/leads/'+ES.slId).update(u).then(function(){var e=document.getElementById('psave');if(e){e.textContent='✓ Enregistré';setTimeout(function(){if(e)e.textContent=''},1800)}}).catch(function(){});
+}
+function ePrepaChk(i,on){
+  ES.prepa=ES.prepa||{};ES.prepa.etapes=ES.prepa.etapes||{};ES.prepa.etapes[i]=on?true:null;ePrepaSave('etapes/'+i,on?true:null);
+  var n=0;for(var k=1;k<=4;k++)if(ES.prepa.etapes[k])n++;
+  var c=document.getElementById('pcnt');if(c)c.textContent=n+' / 4';var r=document.getElementById('pe'+i);if(r)r.classList.toggle('on',!!on);
+}
+var ePrepaT={};
+function ePrepaRep(i,v){
+  ES.prepa=ES.prepa||{};ES.prepa.rep=ES.prepa.rep||{};ES.prepa.rep[i]=v;clearTimeout(ePrepaT[i]);ePrepaT[i]=setTimeout(function(){ePrepaSave('rep/'+i,v)},900);
+}
 function eAppel(keep){
   eKeepFields();
   if(F.active===false&&!Q.get('apercu'))return eClosed(F.fermeMsg||'Les appels ne sont pas ouverts pour le moment');
-  var h=eHead()+eHero(true,F.cta||'Réserver mon appel')+eBenefits();
+  if(ES.step==='merci'&&ES.slot){root().innerHTML='<div class="wrap e-wrap">'+eHead()+'<section class="e-sec"><div class="card">'+eAppelMerciCard()+'</div></section>'+eAbout()+eFoot()+'</div>';if(!keep)window.scrollTo(0,0);return}
+  var h=eHead()+eHero(true,F.cta||'Réserver mon appel')+eBenefits()+eDeroule()+eResultats()+ePourQui()+eTemoins()+eQuote();
   if(F.note)h+='<div class="alert">'+esc(F.note)+'</div>';
   h+='<section class="e-sec" id="resa"><div class="card">';
   var A=F.agenda||{};
@@ -470,16 +685,25 @@ function eInfosNext(){
 function eAppelMerciCard(){
   var A=F.agenda||{},s=ES.slot;if(!s)return '';
   return '<div class="big"><div class="em">🌿</div><h2>'+esc(F.merciTitre||'Ton appel est réservé')+', '+esc(eFirst())+' !</h2><p class="hint">'+esc(F.merciTexte||'')+'</p></div><div class="recap"><div><span>Quand</span><b>'+esc(eLongDate(s.date,s.hm))+'</b></div><div><span>Durée</span><b>'+(A.duree||30)+' min</b></div><div><span>Comment</span><b>'+esc(A.modalite||'Appel')+'</b></div></div>'
-   +'<a class="btn" style="text-decoration:none;text-align:center" href="'+eGcal()+'" target="_blank" rel="noopener">📅 Ajouter à mon agenda</a><a class="btn ghost" style="text-decoration:none;text-align:center" href="'+eIcs()+'" download="'+(F.rdvNom?'rendez-vous-co-naitre':'bilan-forme-sante')+'.ics">Télécharger le fichier agenda (.ics)</a>'+(A.lien?'<a class="btn ghost" style="text-decoration:none;text-align:center" href="'+esc(A.lien)+'" target="_blank" rel="noopener">Lien de la visio</a>':'');
+   +'<a class="btn" style="text-decoration:none;text-align:center" href="'+eGcal()+'" target="_blank" rel="noopener">📅 Ajouter à mon agenda</a><a class="btn ghost" style="text-decoration:none;text-align:center" href="'+eIcs()+'" download="'+(F.rdvNom?'rendez-vous-co-naitre':'bilan-forme-sante')+'.ics">Télécharger le fichier agenda (.ics)</a>'+(A.lien?'<a class="btn ghost" style="text-decoration:none;text-align:center" href="'+esc(A.lien)+'" target="_blank" rel="noopener">Lien de la visio</a>':'')+eApresRdv();
 }
 // ---------- page de vente + contrat ----------
 var GRILLE=null,CTR_URL_DEFAULT='https://anaisfittraining-afk.github.io/tableaudebordsuperfitmum/contrat-signature.html';
 function eNum(t){var m=String(t==null?'':t).replace(/\s/g,'').match(/\d+(?:[.,]\d+)?/);return m?m[0].replace(',','.'):''}
 // Tarif mensuel du contrat : grille tarifaire (si la formule y est reliée), sinon tarif saisi, sinon prix affiché
 function eTarif(o){
-  if(o.grille&&GRILLE&&GRILLE.abo){var v=GRILLE.abo[(o.formuleContrat==='bilanmensuel'?'reduite':'conseille')+(o.engagement==='12mois'?'12':'4')];if(v!==''&&v!=null)return String(v)}
+  if(o.grille&&GRILLE&&GRILLE.abo){var n=(o.engagement==='12mois'?'12':'4'),v;
+    if(o.formuleContrat==='bilanmensuel')v=GRILLE.abo['reduite'+n];
+    else{v=GRILLE.abo['avantAici'+n];if(v===''||v==null)v=GRILLE.abo['conseille'+n]} // tarif de base = case « avant AICI » de la grille
+    if(v!==''&&v!=null)return String(v)}
   if(o.tarif!=null&&o.tarif!=='')return String(o.tarif);
   return eNum(o.prix);
+}
+// Prise en charge AICI : reprise de la grille tarifaire (« après AICI » de la durée choisie), comme dans l'onglet Vente.
+// Vide si l'offre ne suit pas la grille ou si la grille ne la renseigne pas (formule réduite : sa propre ligne « après AICI »).
+function eAici(o){
+  if(!(o.grille&&GRILLE&&GRILLE.abo)||o.formuleContrat==='reduite')return '';
+  var v=GRILLE.abo[(o.formuleContrat==='bilanmensuel'?'reduiteAici':'aici')+(o.engagement==='12mois'?'12':'4')];return(v!==''&&v!=null)?String(v):'';
 }
 function ePrix(o){return(o.grille&&GRILLE&&GRILLE.abo&&eTarif(o))?eTarif(o)+' €/mois':(o.prix||'')}
 function eCtrUrl(code){
@@ -546,7 +770,7 @@ function eEnsureContract(){
   if(ES.cid&&ES.contract&&ES.contract.contratCode){ES.ctrCode=ES.contract.contratCode;return db.ref('contrats/'+ES.ctrCode+'/adresse').once('value').then(function(sn){if(!sn.val())return db.ref('contrats/'+ES.ctrCode).update({adresse:ES.adresse})})}
   var parts=ES.nom.trim().split(/\s+/),prenom=parts.shift()||'',nom=parts.join(' ')||prenom;
   var ej=o.essaiJours!=null?o.essaiJours:(F.essaiJours||0);
-  var rec={nom:nom,prenom:prenom,adresse:ES.adresse,email:ES.email,telephone:ES.tel,sexe:'f',formule:(o.formuleContrat==='bilanmensuel'||o.formuleContrat==='reduite')?o.formuleContrat:'complete',offer:o.engagement==='12mois'?'12mois':'4mois',tarifBase:eTarif(o),tarifRemise:'',montantAici:'',resteCharge:'',essaiJours:Math.max(0,parseInt(ej,10)||0),essaiTexte:F.essaiTexte||'',source:'tunnel',funnel:FID,leadId:ES.leadId||''};
+  var rec={nom:nom,prenom:prenom,adresse:ES.adresse,email:ES.email,telephone:ES.tel,sexe:'f',formule:(o.formuleContrat==='bilanmensuel'||o.formuleContrat==='reduite')?o.formuleContrat:'complete',offer:o.engagement==='12mois'?'12mois':'4mois',tarifBase:eTarif(o),tarifRemise:'',montantAici:eAici(o),resteCharge:eAici(o),essaiJours:Math.max(0,parseInt(ej,10)||0),essaiTexte:F.essaiTexte||'',paiement:o.paiement==='echu'?'echu':'',source:'tunnel',funnel:FID,leadId:ES.leadId||''};
   if(!ES.ctrCode){
     var slug=function(t){return String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'')};
     ES.ctrCode=(slug(prenom)+slug(nom)||'contrat')+Math.random().toString(36).slice(2,6);
@@ -714,7 +938,7 @@ function tMail(ev,v){
   return get.then(function(c){
     var t=((c.tpl||{})[FID]||{})[ev],jobs=[];
     var base=location.href.replace(/[?#].*$/,'');
-    var vars={prenom:(v.nom||'').split(' ')[0],nom:v.nom||'',offre:v.offre||'',prix:v.prix||'',tunnel:F.nom||FID,lien_tunnel:base+'?f='+FID,lien_contrat:ES.cid?base+'?f='+FID+'&c='+ES.cid:base+'?f='+FID,modalite:(F.agenda&&F.agenda.modalite)||'',date_rdv:v.date_rdv||'',heure_rdv:v.heure_rdv||'',lien_agenda:v.lien_agenda||'',lien_reservation:'',formule:'',seances_txt:''};
+    var vars={prenom:(v.nom||'').split(' ')[0],nom:v.nom||'',offre:v.offre||'',prix:v.prix||'',tunnel:F.nom||FID,lien_tunnel:base+'?f='+FID,lien_contrat:ES.cid?base+'?f='+FID+'&c='+ES.cid:base+'?f='+FID,modalite:(F.agenda&&F.agenda.modalite)||'',date_rdv:v.date_rdv||'',heure_rdv:v.heure_rdv||'',lien_agenda:v.lien_agenda||'',lien_salle:v.leadId?eSalleUrl(v.leadId):'',lien_guide:eGuideUrl(),lien_reservation:'',formule:'',seances_txt:''};
     var claim=function(key){return db.ref('acquisition/leads/'+v.leadId+'/mails/'+key).transaction(function(x){return x?undefined:new Date().toISOString()}).then(function(r){return r.committed})};
     if(t&&t.on&&v.email)jobs.push(claim(ev).then(function(ok){return ok?tMailRaw(c,v.email,t.sujet,t.corps,vars):false}));
     if((c.coach||{})[FID]&&(c.ejs||{}).coachEmail){
