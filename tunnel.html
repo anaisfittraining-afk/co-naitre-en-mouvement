@@ -368,7 +368,7 @@ var LOGO='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAPoAAACcCAYAAABWQbZ6AACI
 function eFirst(){return (ES.nom||'').trim().split(' ')[0]}
 function eTitle(t){var w=String(t||'').trim().split(' ');if(w.length<2)return esc(t);var last=w.pop();return esc(w.join(' '))+' <em>'+esc(last)+'</em>'}
 function eHead(){return '<div class="e-top"><img src="'+LOGO+'" alt="co-NAÎTRE"><span>AVEC ANAÏS FERNET</span></div>'}
-function eFoot(){return '<div class="foot">Un accompagnement signé<b>co-NAÎTRE</b><small style="display:block;opacity:.4;font-size:10px;margin-top:8px;font-weight:400">version du 11 novembre · 20 h</small></div>'}
+function eFoot(){return '<div class="foot">Un accompagnement signé<b>co-NAÎTRE</b><small style="display:block;opacity:.4;font-size:10px;margin-top:8px;font-weight:400">version du 11 novembre · 20 h 30</small></div>'}
 function eLines(s){return String(s||'').split('\n').map(function(x){return x.trim()}).filter(Boolean)}
 function eHero(withBtn,btnLabel){
   var h=(FLYER?'<img class="flyer" src="'+FLYER+'" alt="" style="margin-top:14px">':'')+'<section class="e-hero">'+(F.bandeau?'<div class="e-eye">'+esc(F.bandeau)+'</div>':'')+'<h1>'+eTitle(F.titre)+'</h1>';
@@ -559,10 +559,10 @@ function eVidHtml(u){
 function ePresent(){
   if(!eNF())return '';
   var V=[{u:F.videoHistoire||NF.videos.histoire,eye:'Mon histoire',t:'Mes douleurs servent ta réussite',p:'Pour que tu comprennes pourquoi j\'accompagne les mamans épuisées à s\'épanouir pour le reste de leur vie.'},
-         {u:F.videoAthlete||NF.videos.athlete,eye:'Mon univers d\'athlète',ph:[['athlete-podium.jpg','Carte Pro ICN · 1re place'],['athlete-monde.jpg','Championnats du monde INBA 2025']],t:'Championne d\'Europe de culturisme naturel',p:'Si je te dis qu\'à partir d\'aujourd\'hui TON objectif devient le MIEN : doutes-tu encore de ta réussite ?'}].filter(function(x){return eVidHtml(x.u)});
+         {u:F.videoAthlete||NF.videos.athlete,eye:'Mon univers d\'athlète',ph:[['athlete-podium.jpg','Carte Pro ICN · 1re place'],['athlete-monde.jpg','Championnats du monde INBA 2025']],t:'Championne d\'Europe de culturisme naturel',p:'Mes objectifs de compétition me servent à te parler de ce qui compte vraiment : la détermination pour atteindre les buts qu\'on se fixe.'}].filter(function(x){return eVidHtml(x.u)});
   if(!V.length)return '';
   return '<section class="e-sec"><div class="e-eye2">Qui je suis</div><h2 class="e-h2">Je te présente mon parcours</h2><p class="e-sub">Quelques minutes pour faire connaissance, avant notre appel.</p>'
-    +V.map(function(x){return '<div class="e-vid"><div class="e-eye2" style="margin-bottom:4px">'+esc(x.eye)+'</div><h3>'+esc(x.t)+'</h3><p>'+esc(x.p)+'</p>'+(x.ph?'<div class="e-ph">'+x.ph.map(function(f){return '<figure><img src="'+eBaseDir()+f[0]+'" alt="'+esc(f[1])+'" loading="lazy" onerror="this.parentNode.style.display=\'none\'"><figcaption>'+esc(f[1])+'</figcaption></figure>'}).join('')+'</div>':'')+eVidHtml(x.u)+'</div>'}).join('')+'</section>';
+    +V.map(function(x){return '<div class="e-vid"><div class="e-eye2" style="margin-bottom:4px">'+esc(x.eye)+'</div><h3>'+esc(x.t)+'</h3><p>'+esc(x.p)+'</p>'+(x.ph?'<div class="e-ph">'+x.ph.map(function(f){return '<figure><img src="'+eBaseDir()+f[0]+'" alt="'+esc(f[1])+'" loading="lazy" onerror="this.parentNode.style.display=\'none\'"><figcaption>'+esc(f[1])+'</figcaption></figure>'}).join('')+'</div>':'')+eVidHtml(x.u)+'</div>'}).join('')+'<div class="e-card" style="margin-top:14px"><b>Un mot sur mes compétitions</b><span>Mon objectif de compétition est là pour te parler de détermination dans les buts à atteindre. Il ne s\'agit pas de te donner l\'objectif de monter sur scène : ton but à toi, c\'est toi qui le choisis, et je t\'aide à l\'atteindre.</span></div></section>';
 }
 function eNF(){return F&&F.type==='appel'&&F.nouveauFormat!==false}
 function eBaseDir(){return location.href.replace(/[?#].*$/,'').replace(/[^\/]*$/,'')}
@@ -603,6 +603,44 @@ function eApresRdv(){
   h+='<a class="btn ghost" style="text-decoration:none;text-align:center" href="'+esc(eGuideUrl())+'" target="_blank" rel="noopener">📘 Télécharger mon guide de préparation (PDF)</a></div>';
   return h;
 }
+
+// ---------- Préparation ouverte depuis le guide PDF (WhatsApp, autre appareil…) : on demande nom / e-mail / téléphone pour faire le rapprochement ----------
+function eGuidePrepa(keep){
+  if(!ES.gp)ES.gp={nom:'',email:'',tel:'',rep:{},sent:false,err:''};
+  var g=ES.gp;
+  if(g.sent){
+    root().innerHTML='<div class="wrap e-wrap">'+eHead()+'<div class="card big"><div class="em">🌿</div><h2>Merci '+esc(String(g.nom).split(' ')[0])+' !</h2><p class="hint">J\'ai bien reçu tes réponses. Je fais le lien avec ton rendez-vous et je les lis avant notre appel.</p><button class="btn ghost" onclick="ES.gp.sent=false;eRender()">Modifier mes réponses</button></div>'+eFoot()+'</div>';
+    if(!keep)window.scrollTo(0,0);return;
+  }
+  var h=eHead()+'<section class="e-hero"><div class="e-eye">Préparons notre appel</div><h1>Tes réponses <em>avant l\'appel</em></h1><p class="e-intro">Je ne retrouve pas ton rendez-vous sur cet appareil : pas de souci. Dis-moi qui tu es et réponds aux questions, je fais le lien de mon côté.</p></section>'
+   +'<section class="e-sec"><div class="card"><h2>Qui es-tu ?</h2><p class="hint">Les mêmes coordonnées que pour ta réservation, pour que je retrouve ton rendez-vous.</p>'
+   +'<label class="f">Nom et prénom</label><input class="in" id="g-nom" autocomplete="name" value="'+esc(g.nom)+'" oninput="ES.gp.nom=this.value">'
+   +'<label class="f">Adresse e-mail</label><input class="in" id="g-email" type="email" autocomplete="email" value="'+esc(g.email)+'" oninput="ES.gp.email=this.value">'
+   +'<label class="f">Téléphone</label><input class="in" id="g-tel" type="tel" autocomplete="tel" value="'+esc(g.tel)+'" oninput="ES.gp.tel=this.value"></div></section>'
+   +'<section class="e-sec"><div class="e-eye2">Pour arriver préparée</div><h2 class="e-h2">6 questions à te poser avant notre appel</h2><p class="e-sub">Pas besoin de réponses parfaites. Note ce qui vient, avec tes mots.</p>'
+   +NF.questions.map(function(q,i){return '<div class="e-q"><b>'+esc(q)+'</b><textarea class="in" rows="3" placeholder="Tes mots…" oninput="ES.gp.rep['+(i+1)+']=this.value">'+esc(g.rep[i+1]||'')+'</textarea></div>'}).join('')
+   +'<div class="err" id="gerr"'+(g.err?' style="display:block"':'')+'>'+esc(g.err)+'</div>'
+   +'<button class="btn e-cta" onclick="eGuideSend()">Envoyer mes réponses</button><p class="hint" style="text-align:center;margin-top:8px">En envoyant, j\'accepte que mes réponses soient utilisées pour préparer notre appel.</p></section>'+eFoot();
+  root().innerHTML='<div class="wrap e-wrap">'+h+'</div>';
+  if(!keep)window.scrollTo(0,0);
+}
+function eGuideSend(){
+  var g=ES.gp;g.err='';
+  var nom=String(g.nom||'').trim(),em=String(g.email||'').trim(),tel=String(g.tel||'').trim();
+  if(nom.length<2)g.err='Indique ton nom et prénom.';
+  else if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em))g.err='Indique une adresse e-mail valide.';
+  else if(tel.replace(/\D/g,'').length<8)g.err='Indique ton numéro de téléphone.';
+  else if(!Object.keys(g.rep).some(function(k){return String(g.rep[k]||'').trim()}))g.err='Réponds à au moins une question.';
+  if(g.err){eGuidePrepa(true);var e=document.getElementById('gerr');if(e)e.scrollIntoView({block:'center'});return}
+  if(!db){g.err='Connexion indisponible pour le moment, réessaie dans un instant.';eGuidePrepa(true);return}
+  var now=new Date().toISOString(),rep={};
+  for(var i=1;i<=6;i++){var v=String(g.rep[i]||'').trim();if(v)rep[i]=v}
+  var id=g.id||'';try{if(!id)id=localStorage.getItem('sfm_guide_prepa_'+FID)||''}catch(e){}
+  var first=!id;if(first)id=db.ref('acquisition/leads').push().key;
+  var p=first?db.ref('acquisition/leads/'+id).set({funnel:FID,nom:nom,email:em,telephone:tel,status:'nouveau',source:'guide-prepa',prepa:{etapes:{},rep:rep,updatedAt:now},createdAt:now,updatedAt:now,vu:false})
+              :db.ref('acquisition/leads/'+id).update({nom:nom,email:em,telephone:tel,prepa:{etapes:{},rep:rep,updatedAt:now},updatedAt:now,vu:false});
+  p.then(function(){g.id=id;g.sent=true;try{localStorage.setItem('sfm_guide_prepa_'+FID,id)}catch(e){}eGuidePrepa()}).catch(function(){g.err='L\'envoi n\'a pas marché, réessaie dans un instant.';eGuidePrepa(true)});
+}
 // ---------- Salle d'attente ----------
 function eSlotOfLead(d){
   var w=d&&(d.rdvTs?{ts:d.rdvTs,dur:d.rdvDuree}:(d.rdvAttente?{ts:d.rdvAttente.ts,dur:d.rdvAttente.dur}:null));if(!w||!w.ts)return null;
@@ -621,7 +659,8 @@ function eSalle(keep){
   }
   var s=ES.sl&&eSlotOfLead(ES.sl);
   if(ES.slErr||!ES.sl||!s){
-    root().innerHTML='<div class="wrap e-wrap">'+eHead()+'<div class="card big"><div class="em">🌿</div><h2>Je ne retrouve pas ton rendez-vous</h2><p class="hint">Réserve ton appel Bilan, ou écris-moi directement : je te guide.</p><a class="btn" style="text-decoration:none;text-align:center" href="'+esc(location.href.replace(/[?#].*$/,'')+'?f='+FID)+'">Réserver mon appel</a></div>'+eFoot()+'</div>';return;
+    if(!Q.get('l'))return eGuidePrepa(keep);
+    root().innerHTML='<div class="wrap e-wrap">'+eHead()+'<div class="card big"><div class="em">🌿</div><h2>Je ne retrouve pas ton rendez-vous</h2><p class="hint">'+(Q.get('l')?'Réserve ton appel Bilan, ou écris-moi directement : je te guide.':'Ouvre ce lien depuis le téléphone ou l\'ordinateur avec lequel tu as réservé, ou utilise le bouton « Encore quelques détails pour optimiser notre appel » de ton e-mail de confirmation. Besoin d\'aide ? Écris-moi, je te guide.')+'</p><a class="btn" style="text-decoration:none;text-align:center" href="'+esc(location.href.replace(/[?#].*$/,'')+'?f='+FID)+'">Réserver mon appel</a></div>'+eFoot()+'</div>';return;
   }
   var A=F.agenda||{},P=ES.prepa||{},et=P.etapes||{},rep=P.rep||{},pp=parisParts(s.ts);
   var n=0;NF.etapes.forEach(function(x,i){if(et[i+1])n++});
@@ -635,6 +674,7 @@ function eSalle(keep){
    +'<section class="e-sec"><div class="e-eye2">Pour arriver préparée</div><h2 class="e-h2">6 questions à te poser</h2><p class="e-sub">Pas besoin de réponses parfaites. Note ce qui vient, avec tes mots. Tes réponses se sauvegardent toutes seules : tu peux fermer la page et revenir quand tu veux.</p>'
    +NF.questions.map(function(q,i){return '<div class="e-q"><b>'+esc(q)+'</b><textarea class="in" rows="3" placeholder="Tes mots…" oninput="ePrepaRep('+(i+1)+',this.value)">'+esc(rep[i+1]||'')+'</textarea></div>'}).join('')
    +'<p class="e-sub" style="margin-top:6px"><span id="psave"></span></p></section>'
+   +ePresent()
    +eDeroule()
    +'<section class="e-sec"><a class="btn ghost" style="text-decoration:none;text-align:center" href="'+esc(eGuideUrl())+'" target="_blank" rel="noopener">📘 Télécharger mon guide de préparation (PDF)</a>'
    +'<div class="e-warn" style="margin-top:14px"><b>Un empêchement ?</b>Préviens-moi : sans prévenir, il ne sera possible ni de décaler, ni de reprendre un second rendez-vous. Merci de ta compréhension.</div></section>'
@@ -675,7 +715,7 @@ function eAppel(keep){
   eKeepFields();
   if(F.active===false&&!Q.get('apercu'))return eClosed(F.fermeMsg||'Les appels ne sont pas ouverts pour le moment');
   if(ES.step==='merci'&&ES.slot){root().innerHTML='<div class="wrap e-wrap">'+eHead()+'<section class="e-sec"><div class="card">'+eAppelMerciCard()+'</div></section>'+eAbout()+eFoot()+'</div>';if(!keep)window.scrollTo(0,0);return}
-  var h=eHead()+eHero(true,F.cta||'Réserver mon appel')+eBenefits()+eDeroule()+eCta()+eResultats()+ePourQui()+eCta()+ePresent()+eTemoins()+eCta()+eQuote();
+  var h=eHead()+eHero(true,F.cta||'Réserver mon appel')+eBenefits()+eDeroule()+eCta()+eResultats()+ePourQui()+eCta()+eTemoins()+eCta()+eQuote();
   if(F.note)h+='<div class="alert">'+esc(F.note)+'</div>';
   h+='<section class="e-sec" id="resa"><div class="card">';
   var A=F.agenda||{};
