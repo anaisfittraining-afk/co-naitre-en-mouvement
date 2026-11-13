@@ -1134,7 +1134,9 @@ var RES_EVENEMENTS = {};
 var RES_EV_LINK = ''; // plus de lien CRM : seuls les liens Stripe saisis sur l'événement (par statut) sont utilisés
 function resFetchEvenementLink() { /* plus de lien CRM à charger */ }
 // Tarif de l'évènement selon le statut de la personne (prixStatut saisi dans le tableau de bord), sinon le prix général.
-function resEvPrix(e, statut) { return (e && e.prixStatut && e.prixStatut[statut]) || (e && e.prix) || ''; }
+// Si Anaïs écrit « offert » (ou « gratuit », « 0 € ») comme tarif d'un statut, la place est offerte à ce statut : aucun paiement.
+function resEvIsOffert(e, statut) { var v = e && e.prixStatut && e.prixStatut[statut]; return !!v && /^\s*(offert(e|es|s)?|gratuit(e|es|s)?|0\s*(€|eur|euros?)?)\s*$/i.test(String(v)); }
+function resEvPrix(e, statut) { if (resEvIsOffert(e, statut)) return 'Offert'; return (e && e.prixStatut && e.prixStatut[statut]) || (e && e.prix) || ''; }
 var RES_EV_RSVP = {}; // mes réponses de présence : { idEvenement: { response: 'oui'|'non', ... } }
 // Chemin Firebase 'reservations/evenements_rsvp/<code>/<idEvenement>' — une réponse par cliente et par
 // événement, modifiable à tout moment ; le tableau de bord les regroupe par événement.
@@ -1202,11 +1204,12 @@ function resRenderEvenements() {
   if (!all.length) { body.innerHTML = ''; return; }
   var out = '';
   all.forEach(function(e) {
-    var statut, offert = false;
+    var statut, offert = false, monPrix = '';
     if (!e.payant) { statut = '🎁 Gratuit pour tous'; offert = true; }
     else if (e.offerts && RES_CODE && e.offerts[RES_CODE]) { statut = '🎁 Place offerte par Anaïs'; offert = true; }
+    else if (resEvIsOffert(e, (RES_CLIENT.abonnementTypes || []).length ? 'abonnement' : 'carte')) { statut = '🎁 Offert pour toi'; offert = true; }
     else if (hasComplet) { statut = '✨ Offert avec ton Pass Complet'; offert = true; }
-    else { var monPrix = resEvPrix(e, (RES_CLIENT.abonnementTypes || []).length ? 'abonnement' : 'carte'); statut = '💶 Payant' + (monPrix ? ' — ' + esc(monPrix) : ''); }
+    else { monPrix = resEvPrix(e, (RES_CLIENT.abonnementTypes || []).length ? 'abonnement' : 'carte'); statut = '💶 Payant' + (monPrix ? ' — ' + esc(monPrix) : ''); }
     out += '<div class="resa-item" style="align-items:flex-start;flex-wrap:wrap">';
     out += '<div class="resa-item-info"><b>' + esc(e.nom) + '</b>';
     out += '<div class="resa-item-sub">' + resEvenementDateLabel(e.date, e.heure, e.heureFin) + '</div>';
@@ -1214,11 +1217,11 @@ function resRenderEvenements() {
     // Lien de paiement propre au statut (abonnée / carte) si Anaïs l'a renseigné sur l'événement, sinon lien habituel.
     var statutLien = ((RES_CLIENT.abonnementTypes || []).length ? (e.liens && e.liens.abonnement) : (e.liens && e.liens.carte)) || '';
     var payLink = statutLien;
-    if (offert) out += '<div class="resa-item-sub" style="max-width:190px">Rien à régler pour toi.</div>';
-    else if (payLink) out += '<a class="btn-mini positive" style="text-decoration:none" href="' + esc(payLink) + '" target="_blank" rel="noopener">' + '💳 Régler ma place' + '</a>';
-    else out += '<div class="resa-item-sub" style="max-width:190px">Le lien de paiement arrive bientôt — contacte Anaïs pour t\'inscrire.</div>';
     var rec = RES_EV_RSVP[e.id] || null;
     var mine = rec && rec.response;
+    // Le lien de paiement n'apparaît qu'APRÈS le clic sur « Je viens » (plus de bouton « Régler » à part).
+    if (offert) out += '<div class="resa-item-sub" style="max-width:190px">Rien à régler pour toi.</div>';
+    else if (mine !== 'oui') out += '<div class="resa-item-sub" style="max-width:190px">Le paiement s\'affiche dès que tu confirmes ta venue.</div>';
     var acts = resEvActivites(e);
     out += '<div style="flex:1 1 100%;margin-top:4px">';
     out += '<div class="resa-item-sub" style="font-weight:700;margin-bottom:6px">' + (acts.length ? 'Étape 1 — Seras-tu présente ?' : 'Seras-tu présente ?') + '</div>';
@@ -1238,6 +1241,12 @@ function resRenderEvenements() {
       out += '</div>';
       if (choisies.length) out += '<div class="resa-item-sub" style="margin-top:6px;font-style:italic">Tes activités : ' + choisies.map(function(c) { return '✅ ' + esc(c.nom); }).join(', ') + ' — touche une activité pour l\'ajouter ou la retirer.</div>';
       else out += '<div class="resa-item-sub" style="margin-top:6px;font-style:italic;color:#8a5a26">Ta présence est confirmée. Choisis maintenant ta ou tes activités.</div>';
+    }
+    if (mine === 'oui' && !offert) {
+      out += '<div style="margin-top:12px"><div class="resa-item-sub" style="font-weight:700;margin-bottom:6px">' + (acts.length ? 'Étape 3 — ' : '') + 'Règle ta place :</div>';
+      if (payLink) out += '<a class="btn-mini positive" style="text-decoration:none" href="' + esc(payLink) + '" target="_blank" rel="noopener">💳 Régler ma place' + (monPrix ? ' — ' + esc(monPrix) : '') + '</a>';
+      else out += '<div class="resa-item-sub">Le lien de paiement arrive bientôt — contacte Anaïs pour finaliser ta place.</div>';
+      out += '</div>';
     }
     out += '</div>';
     out += '</div>';
@@ -1946,7 +1955,7 @@ function resExtMerci(id) {
 }
 function resExtFinish(acts) {
   var e = RES_EXT_EVENT, p = RES_EXT_PERSON;
-  var link = (e.liens && e.liens.exterieur) || '';
+  var link = resEvIsOffert(e, 'exterieur') ? '' : ((e.liens && e.liens.exterieur) || '');   // « offert » pour les extérieures : aucun paiement
   resExtSaveLead(e, p, acts, link ? 'paiement_ouvert' : 'nouveau');
   if (link) {
     var q = 'first_name=' + encodeURIComponent(p.prenom) + '&last_name=' + encodeURIComponent(p.nom) + '&email=' + encodeURIComponent(p.email) + '&phone=' + encodeURIComponent(p.telephone) +
