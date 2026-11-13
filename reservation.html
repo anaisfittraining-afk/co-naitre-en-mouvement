@@ -107,6 +107,10 @@ h1, h2, h3 { font-family: 'Fraunces', serif; font-optical-sizing: auto; }
 }
 .carte-renew .renew-code { margin-top: 7px; font-size: 11.5px; opacity: 0.85; }
 .carte-renew .renew-code b { letter-spacing: 0.3px; }
+.carte-box .renew-btn { display: inline-block; text-decoration: none; background: var(--green); color: white; font-weight: 700; font-size: 13px; padding: 10px 18px; border-radius: 22px; white-space: nowrap; }
+.carte-promo { margin-top: 10px; font-size: 12px; color: #5c6b54; line-height: 1.5; background: #f3f6ee; border: 1.5px dashed #b9c9ad; border-radius: 10px; padding: 9px 12px; }
+.carte-promo b { letter-spacing: .5px; color: var(--green); }
+.carte-promo button { margin-left: 6px; border: 1.5px solid #b9c9ad; background: #fff; color: var(--green); border-radius: 14px; padding: 2px 10px; font: inherit; font-size: 11.5px; font-weight: 700; cursor: pointer; }
 
 /* ── CRÉNEAUX ── */
 .day-group { margin-bottom: 16px; }
@@ -734,21 +738,19 @@ function resRenderCarte() {
     out += '<div class="carte-box">' +
       '<div class="carte-count">' + esc(label) + '<span>' + restantes + '</span><small> / ' + total + ' séances restantes</small></div>' +
       '<div class="carte-bar-wrap"><div class="carte-bar-track"><div class="carte-bar-fill" style="width:' + pct + '%"></div></div></div>' +
+      '<a class="renew-btn" href="' + esc(resRenewHref()) + '" target="_blank" rel="noopener">🔄 Reprendre une carte</a>' +
       '</div>';
     if (restantes <= 0) {
       out += '<div class="carte-renew urgent" style="display:block">' +
-        '<div>⚠️ Ta carte' + (types.length > 1 ? (' ' + resTypeLabel(type).toLowerCase()) : '') + ' est épuisée — renouvelle-la pour continuer à réserver.</div>' +
-        '<a class="renew-btn" href="' + esc(resRenewHref()) + '" target="_blank" rel="noopener">🔄 Renouveler ma carte</a>' +
-        resRenewCodeLine() +
+        '<div>⚠️ Ta carte' + (types.length > 1 ? (' ' + resTypeLabel(type).toLowerCase()) : '') + ' est épuisée — reprends-en une pour continuer à réserver.</div>' +
         '</div>';
     } else if (restantes <= 2) {
       out += '<div class="carte-renew" style="display:block">' +
-        '<div>⚠️ Plus que ' + restantes + ' séance' + (restantes > 1 ? 's' : '') + (types.length > 1 ? (' sur ta carte ' + resTypeLabel(type).toLowerCase()) : ' sur ta carte') + ' — pense à la renouveler dès maintenant.</div>' +
-        '<a class="renew-btn" href="' + esc(resRenewHref()) + '" target="_blank" rel="noopener">🔄 Renouveler ma carte</a>' +
-        resRenewCodeLine() +
+        '<div>⚠️ Plus que ' + restantes + ' séance' + (restantes > 1 ? 's' : '') + (types.length > 1 ? (' sur ta carte ' + resTypeLabel(type).toLowerCase()) : ' sur ta carte') + ' — pense à reprendre une carte dès maintenant.</div>' +
         '</div>';
     }
   });
+  out += '<div class="carte-promo">' + resRenewCodeLine() + '</div>';
   body.innerHTML = out;
   document.getElementById('choixCard').style.display = anyRestantes ? '' : 'none';
 }
@@ -1129,14 +1131,10 @@ var RES_EVENEMENTS = {};
 // Lien d'inscription/paiement des événements : TOUJOURS celui des inscriptions Pilates (Desvres), le même que
 // dans "Nouvelle inscription" (modifiable dans le tableau de bord, Réservations) — jamais saisi par événement.
 // Affiché uniquement aux clientes qui doivent payer (événement payant et pas de Pass Complet).
-var RES_EV_LINK = 'https://reservation.oamafernet.com/pilateshybride-458251'; // valeur par défaut, remplacée par celle de Firebase
-function resFetchEvenementLink() {
-  if (!resDB) return;
-  resDB.ref('reservations/' + RES_CRM_LINK_FIELD.desvres).on('value', function(s) {
-    RES_EV_LINK = s.val() || RES_CRM_LINK_DEFAULT.desvres || RES_EV_LINK;
-    resRenderEvenements();
-  });
-}
+var RES_EV_LINK = ''; // plus de lien CRM : seuls les liens Stripe saisis sur l'événement (par statut) sont utilisés
+function resFetchEvenementLink() { /* plus de lien CRM à charger */ }
+// Tarif de l'évènement selon le statut de la personne (prixStatut saisi dans le tableau de bord), sinon le prix général.
+function resEvPrix(e, statut) { return (e && e.prixStatut && e.prixStatut[statut]) || (e && e.prix) || ''; }
 var RES_EV_RSVP = {}; // mes réponses de présence : { idEvenement: { response: 'oui'|'non', ... } }
 // Chemin Firebase 'reservations/evenements_rsvp/<code>/<idEvenement>' — une réponse par cliente et par
 // événement, modifiable à tout moment ; le tableau de bord les regroupe par événement.
@@ -1206,15 +1204,19 @@ function resRenderEvenements() {
   all.forEach(function(e) {
     var statut, offert = false;
     if (!e.payant) { statut = '🎁 Gratuit pour tous'; offert = true; }
+    else if (e.offerts && RES_CODE && e.offerts[RES_CODE]) { statut = '🎁 Place offerte par Anaïs'; offert = true; }
     else if (hasComplet) { statut = '✨ Offert avec ton Pass Complet'; offert = true; }
-    else { statut = '💶 Payant' + (e.prix ? ' — ' + esc(e.prix) : ''); }
+    else { var monPrix = resEvPrix(e, (RES_CLIENT.abonnementTypes || []).length ? 'abonnement' : 'carte'); statut = '💶 Payant' + (monPrix ? ' — ' + esc(monPrix) : ''); }
     out += '<div class="resa-item" style="align-items:flex-start;flex-wrap:wrap">';
     out += '<div class="resa-item-info"><b>' + esc(e.nom) + '</b>';
     out += '<div class="resa-item-sub">' + resEvenementDateLabel(e.date, e.heure, e.heureFin) + '</div>';
     out += '<div class="resa-item-sub" style="font-weight:700;color:' + (offert ? 'var(--green)' : '#8a5a26') + '">' + statut + '</div></div>';
+    // Lien de paiement propre au statut (abonnée / carte) si Anaïs l'a renseigné sur l'événement, sinon lien habituel.
+    var statutLien = ((RES_CLIENT.abonnementTypes || []).length ? (e.liens && e.liens.abonnement) : (e.liens && e.liens.carte)) || '';
+    var payLink = statutLien;
     if (offert) out += '<div class="resa-item-sub" style="max-width:190px">Rien à régler pour toi.</div>';
-    else if (RES_EV_LINK) out += '<a class="btn-mini positive" style="text-decoration:none" href="' + esc(RES_EV_LINK) + '" target="_blank" rel="noopener">S\'inscrire et régler</a>';
-    else out += '<div class="resa-item-sub" style="max-width:190px">Contacte Anaïs pour t\'inscrire.</div>';
+    else if (payLink) out += '<a class="btn-mini positive" style="text-decoration:none" href="' + esc(payLink) + '" target="_blank" rel="noopener">' + '💳 Régler ma place' + '</a>';
+    else out += '<div class="resa-item-sub" style="max-width:190px">Le lien de paiement arrive bientôt — contacte Anaïs pour t\'inscrire.</div>';
     var rec = RES_EV_RSVP[e.id] || null;
     var mine = rec && rec.response;
     var acts = resEvActivites(e);
@@ -1525,11 +1527,19 @@ function resLoadTunnelConfig() {
 }
 // Lien « Renouveler ma carte » : le tunnel (formules carte présélectionnées) ou, à défaut, le CRM actuel.
 function resRenewHref() {
-  if (resTunnelFor((RES_CLIENT && RES_CLIENT.lieu) || 'desvres')) return resTunnelUrl((RES_CLIENT && RES_CLIENT.lieu) || 'desvres', '&renew=1' + (RES_CLIENT && RES_CLIENT.nom ? '&nom=' + encodeURIComponent(RES_CLIENT.nom) : '') + (RES_CLIENT && RES_CLIENT.email ? '&email=' + encodeURIComponent(RES_CLIENT.email) : ''));
-  return 'https://reservation.oamafernet.com/pilateshybride-458251';
+  // Toujours le tunnel (jamais le lien du CRM) : formules carte présélectionnées, nom/email préremplis, code de réinscription vérifié.
+  var lieu = (RES_CLIENT && RES_CLIENT.lieu) || 'desvres';
+  return resTunnelUrl(lieu, '&renew=1' + (RES_CLIENT && RES_CLIENT.nom ? '&nom=' + encodeURIComponent(RES_CLIENT.nom) : '') + (RES_CLIENT && RES_CLIENT.email ? '&email=' + encodeURIComponent(RES_CLIENT.email) : '') + (RES_CODE ? '&c=' + encodeURIComponent(RES_CODE) : ''));
+}
+// Code promo de réinscription : frais d'adhésion offerts, RÉSERVÉ aux adhérentes déjà inscrites. Il n'apparaît que
+// dans cet espace (cliente identifiée) — jamais sur les pages d'inscription des nouvelles personnes. Avec le tunnel,
+// il est appliqué automatiquement (après vérification de la fiche de la cliente) ; avec le lien CRM, elle le saisit.
+var RES_PROMO_CODE = 'RECREDIT26';
+function resCopyPromo(btn) {
+  try { navigator.clipboard.writeText(RES_PROMO_CODE); btn.textContent = '✅ Copié'; } catch (e) { btn.textContent = RES_PROMO_CODE; }
 }
 function resRenewCodeLine() {
-  return resTunnelFor((RES_CLIENT && RES_CLIENT.lieu) || 'desvres') ? '' : '<div class="renew-code">Code à utiliser : <b>RENOUVELLEMENT26</b></div>';
+  return '<div class="renew-code">🎁 Code <b>' + RES_PROMO_CODE + '</b> appliqué automatiquement : tes frais d\'adhésion ne sont pas à repayer.</div>';
 }
 var RES_CRM_LINK_LOADED = { desvres: false, fitness_park: false, en_ligne: false };
 var RES_CRM_LINK_FIELD = { desvres: 'crmInscriptionLinkDesvres', fitness_park: 'crmInscriptionLinkFitnessPark', en_ligne: 'crmInscriptionLinkEnLigne' };
@@ -1776,8 +1786,8 @@ function resLoadClientAndListen(fromIdentify) {
 // l'événement (tableau de bord → 🌟 Événements) et diffuse le lien qui s'affiche sur sa carte. La personne
 // remplit prénom / e-mail (+ téléphone, activités) : l'inscription est enregistrée sur Firebase
 // (reservations/evenements_externes/<idEvenement>/<cléEmail>) pour le suivi dans le tableau de bord, puis,
-// si l'événement a un lien HighLevel (champ lienCrm, ou le lien d'inscription Desvres pour un événement
-// payant), elle y est envoyée avec ses informations préremplies — c'est ce qui la fait entrer dans le CRM.
+// si l'événement a un lien de paiement « personnes extérieures » (Stripe, saisi dans le tableau de bord),
+// elle y est envoyée avec ses informations préremplies. Plus aucun lien CRM.
 // ?src=<origine> (ex. instagram) est mémorisé pour savoir d'où viennent les inscrites.
 var RES_EXT_PARAMS = new URLSearchParams(window.location.search);
 var RES_EXT_ID = RES_EXT_PARAMS.get('evenement') || '';
@@ -1821,7 +1831,7 @@ function resExtRenderForm() {
   var e = RES_EXT_EVENT;
   var acts = resEvActivites(e);
   var h = '<p style="font-size:15px;font-weight:700;margin:0 0 2px">' + esc(e.nom || '') + '</p>';
-  h += '<p class="card-hint" style="margin-bottom:12px">' + esc(resExtDateLabel(e.date, e.heure, e.heureFin)) + (e.payant ? (e.prix ? ' · ' + esc(e.prix) : '') : ' · Offert') + '</p>';
+  h += '<p class="card-hint" style="margin-bottom:12px">' + esc(resExtDateLabel(e.date, e.heure, e.heureFin)) + (e.payant ? (resEvPrix(e, 'exterieur') ? ' · ' + esc(resEvPrix(e, 'exterieur')) : '') : ' · Offert') + '</p>';
   if (acts.length) h += '<p class="card-hint" style="font-weight:700;margin-bottom:8px">Étape 1 — Valide ta venue à l\'événement</p>';
   h += '<input type="text" id="extPrenom" class="input-field" placeholder="Prénom" autocomplete="given-name">';
   h += '<input type="text" id="extNom" class="input-field" placeholder="Nom (optionnel)" autocomplete="family-name">';
@@ -1868,6 +1878,7 @@ function resExtSubmit() {
     var first = cur && cur.firstAt ? cur.firstAt : nowIso;
     return Object.assign({}, rec, { activites: (cur && cur.activites) || [], firstAt: first, source: RES_EXT_SRC || (cur && cur.source) || '' });
   }).then(function() {
+    resExtSaveLead(e, RES_EXT_PERSON, []);   // la personne arrive aussi dans « Prospects » du tableau de bord
     if (hasActs) resExtRenderActivites(); else resExtFinish([]);
   }).catch(function(err) {
     if (btn) { btn.disabled = false; btn.textContent = hasActs ? 'Valider ma venue' : 'Je m\'inscris'; }
@@ -1889,9 +1900,54 @@ function resExtActsSubmit() {
     resExtError('Impossible d\'enregistrer tes activités pour le moment — réessaie dans un instant.');
   });
 }
+// ── Prospects : chaque inscrite extérieure est aussi créée dans acquisition/leads (onglet « Prospects » du tableau de bord).
+// Identifiant fixe (évènement + e-mail) : si elle s'inscrit deux fois, pas de doublon. Statuts : nouveau → paiement_ouvert
+// (envoyée vers Stripe) → paye (retour de Stripe sur cette page avec ?merci=1).
+function resExtLeadId(e, p) { return 'ev_' + String(e.id).replace(/[^\w\-]/g, '') + '_' + resExtKey(p.email); }
+function resExtSaveLead(e, p, acts, status) {
+  try {
+    if (!resDB || !e || !p) return;
+    var id = resExtLeadId(e, p), now = new Date().toISOString();
+    var ref = resDB.ref('acquisition/leads/' + id);
+    ref.transaction(function(cur) {
+      var base = {
+        funnel: 'evenement', nom: ((p.prenom || '') + ' ' + (p.nom || '')).trim(), email: p.email, telephone: p.telephone || '',
+        offreLabel: e.nom || 'Événement', offrePrix: resEvPrix(e, 'exterieur'), evenementId: e.id, evenementNom: e.nom || '', evenementDate: e.date || '',
+        activites: (acts || []).map(function(a) { return a.nom; }).join(', '),
+        source: 'évènement' + (RES_EXT_SRC ? ' · ' + RES_EXT_SRC : ''), updatedAt: now
+      };
+      if (cur) {
+        var keep = cur.status === 'paye' || cur.status === 'converti' || cur.status === 'perdu';
+        return Object.assign({}, cur, base, { status: keep ? cur.status : (status || cur.status || 'nouveau'), source: cur.source || base.source });
+      }
+      return Object.assign(base, { status: status || 'nouveau', createdAt: now, vu: false });
+    }).catch(function() {});
+    try { localStorage.setItem('sfm_event_lead', JSON.stringify({ id: id, evenement: e.id, key: resExtKey(p.email), at: now })); } catch (er) {}
+  } catch (er) {}
+}
+// Retour de Stripe : UNE seule adresse « après le paiement » pour tous les évènements (reservation.html?merci=1).
+// L'évènement est retrouvé grâce à l'inscription faite juste avant sur le même navigateur ; (?evenement=<id>&merci=1 marche aussi).
+function resExtMerci(id) {
+  resExtMessage('Merci !', '<p class="card-hint">Chargement…</p>');
+  var rec = null; try { rec = JSON.parse(localStorage.getItem('sfm_event_lead') || 'null'); } catch (er) {}
+  if (!id && rec && rec.evenement) id = rec.evenement;
+  var mine = rec && rec.id && id && rec.evenement === id ? rec : null;
+  if (!id) { resExtMessage('Merci !', '<p class="card-hint">Ton paiement est bien reçu. Ta place est confirmée — à très vite !</p>'); return; }
+  resDB.ref('reservations/evenements/' + id).once('value').then(function(snap) {
+    var e = snap.val() || {}, now = new Date().toISOString();
+    if (mine) {
+      resDB.ref('acquisition/leads/' + mine.id).update({ status: 'paye', paiement: 'paye', paidAt: now, updatedAt: now, vu: false }).catch(function() {});
+      resDB.ref('reservations/evenements_externes/' + id + '/' + mine.key).update({ paye: true, payeAt: now }).catch(function() {});
+    }
+    resExtMessage('Merci !', '<p class="card-hint">Ton paiement est bien reçu' + (e.nom ? ' pour « ' + esc(e.nom) + ' »' : '') + '. Ta place est confirmée — à très vite !</p>');
+  }).catch(function() {
+    resExtMessage('Merci !', '<p class="card-hint">Ton paiement est bien reçu. À très vite !</p>');
+  });
+}
 function resExtFinish(acts) {
   var e = RES_EXT_EVENT, p = RES_EXT_PERSON;
-  var link = e.lienCrm || (e.payant ? RES_EV_LINK : '');
+  var link = (e.liens && e.liens.exterieur) || '';
+  resExtSaveLead(e, p, acts, link ? 'paiement_ouvert' : 'nouveau');
   if (link) {
     var q = 'first_name=' + encodeURIComponent(p.prenom) + '&last_name=' + encodeURIComponent(p.nom) + '&email=' + encodeURIComponent(p.email) + '&phone=' + encodeURIComponent(p.telephone) +
       '&evenement=' + encodeURIComponent(e.nom || '') + '&evenement_date=' + encodeURIComponent(e.date || '') + '&activites=' + encodeURIComponent(acts.map(function(a) { return a.nom; }).join(', ')) + '&source=' + encodeURIComponent(RES_EXT_SRC);
@@ -1987,6 +2043,7 @@ function resInit() {
   } catch (e) { resShowError('Impossible de charger la page de réservation pour le moment.'); return; }
 
   if (RES_SUIVI_ID) { resShowSuivi(RES_SUIVI_ID); return; } // lien de suivi (associée) : lecture seule
+  if (RES_EXT_PARAMS.get('merci')) { resExtMerci(RES_EXT_ID); return; } // retour de Stripe (même page pour tous les évènements)
   if (RES_EXT_ID) { resShowExternalEvent(RES_EXT_ID); return; } // lien public d'un événement : aucune identification
   if (!RES_CODE) RES_CODE = resSavedCode();
   if (!RES_CODE) { resShowIdentifyForm(); return; }
