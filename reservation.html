@@ -1853,7 +1853,7 @@ function resExtRenderForm() {
 }
 function resExtRenderActivites() {
   var e = RES_EXT_EVENT, acts = resEvActivites(e), p = RES_EXT_PERSON;
-  var h = '<p style="font-size:15px;font-weight:700;margin:0 0 4px">✅ Ta venue est validée, ' + esc(p.prenom) + ' !</p>';
+  var h = '<p style="font-size:15px;font-weight:700;margin:0 0 4px">' + (RES_EXT_PAID ? '✅ Paiement reçu, ' : '✅ Ta venue est validée, ') + esc(p.prenom) + ' !</p>';
   h += '<p class="card-hint" style="font-weight:700;margin:10px 0 8px">Étape 2 — Choisis ta ou tes activités (une ou plusieurs) :</p>';
   acts.forEach(function(a) {
     h += '<label style="display:flex;gap:9px;align-items:center;padding:9px 12px;border:1.5px solid var(--border);border-radius:12px;margin-bottom:6px;font-size:14px;cursor:pointer"><input type="checkbox" class="extAct" value="' + esc(a.id) + '" data-nom="' + esc(a.nom) + '"> ' + esc(a.nom) + '</label>';
@@ -1887,7 +1887,9 @@ function resExtSubmit() {
     var first = cur && cur.firstAt ? cur.firstAt : nowIso;
     return Object.assign({}, rec, { activites: (cur && cur.activites) || [], firstAt: first, source: RES_EXT_SRC || (cur && cur.source) || '' });
   }).then(function() {
-    resExtSaveLead(e, RES_EXT_PERSON, []);   // la personne arrive aussi dans « Prospects » du tableau de bord
+    var payLink = resEvIsOffert(e, 'exterieur') ? '' : ((e.liens && e.liens.exterieur) || '');
+    var saved = resExtSaveLead(e, RES_EXT_PERSON, [], payLink ? 'paiement_ouvert' : 'nouveau');   // la personne arrive aussi dans « Prospects » du tableau de bord
+    if (payLink) { resExtGoPay(e, RES_EXT_PERSON, payLink, saved); return; }   // direct vers le paiement ; les activités se choisissent APRÈS (page de retour)
     if (hasActs) resExtRenderActivites(); else resExtFinish([]);
   }).catch(function(err) {
     if (btn) { btn.disabled = false; btn.textContent = hasActs ? 'Valider ma venue' : 'Je m\'inscris'; }
@@ -1938,36 +1940,83 @@ function resExtSaveLead(e, p, acts, status) {
 }
 // Retour de Stripe : UNE seule adresse « après le paiement » pour tous les évènements (reservation.html?merci=1).
 // L'évènement est retrouvé grâce à l'inscription faite juste avant sur le même navigateur ; (?evenement=<id>&merci=1 marche aussi).
+function resExtThanks(e) { resExtMessage('Merci !', '<p class="card-hint">Ton paiement est bien reçu' + (e && e.nom ? ' pour « ' + esc(e.nom) + ' »' : '') + '. Ta place est confirmée — à très vite !</p>'); }
+// Personne retrouvée (par le navigateur ou par son e-mail) : paiement noté, puis choix des activités (étape 2).
+function resExtMerciProceed(id, key, e) {
+  var now = new Date().toISOString();
+  var acts = resEvActivites(e);
+  return resDB.ref('reservations/evenements_externes/' + id + '/' + key).once('value').then(function(ps) {
+    var pr = ps.val() || {};
+    var person = { prenom: pr.prenom || '', nom: pr.nom || '', email: pr.email || '', telephone: pr.telephone || '' };
+    var ev = Object.assign({ id: id }, e);
+    resDB.ref('reservations/evenements_externes/' + id + '/' + key).update({ paye: true, payeAt: now }).catch(function() {});
+    if (person.email) resExtSaveLead(ev, person, [], 'paye').then(function() {
+      resDB.ref('acquisition/leads/' + resExtLeadId(ev, person)).update({ paiement: 'paye', paidAt: now, updatedAt: now, vu: false }).catch(function() {});
+    });
+    if (!acts.length || !person.email) { resExtThanks(e); return; }
+    RES_EXT_EVENT = ev; RES_EXT_PERSON = person; RES_EXT_PAID = true;
+    var deja = pr.activites ? (Array.isArray(pr.activites) ? pr.activites : Object.keys(pr.activites).map(function(k) { return pr.activites[k]; })) : [];
+    if (deja.length) resExtFinish(deja); else resExtRenderActivites();
+  });
+}
+// Si la page ne reconnaît pas la personne (paiement fait sur un autre appareil) : elle donne son e-mail et on la retrouve.
+function resExtMerciAskEmail(id) {
+  var h = '<p class="card-hint">Ton paiement est bien reçu. Pour choisir tes activités, indique l\'e-mail utilisée lors de ton inscription :</p>';
+  h += '<input type="email" id="extMerciEmail" class="input-field" placeholder="Email" autocomplete="email">';
+  h += '<button class="btn-confirm" id="extMerciBtn" onclick="resExtMerciFind(' + jsAttr(id || '') + ')" style="margin-top:12px">Continuer</button>';
+  h += '<div class="book-error" id="extError"></div>';
+  resExtMessage('Merci !', h);
+}
+function resExtMerciFind(id) {
+  var email = (document.getElementById('extMerciEmail').value || '').toLowerCase().trim();
+  resExtError('');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { resExtError('Indique une adresse e-mail valide.'); return; }
+  var key = resExtKey(email), btn = document.getElementById('extMerciBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Recherche…'; }
+  resDB.ref('reservations/evenements').once('value').then(function(snap) {
+    var evs = snap.val() || {}, today = new Date().toISOString().slice(0, 10);
+    var ids = Object.keys(evs).filter(function(k) { return (!id || k === id) && evs[k] && evs[k].exterieur && (evs[k].date || '') >= today; });
+    return Promise.all(ids.map(function(k) {
+      return resDB.ref('reservations/evenements_externes/' + k + '/' + key).once('value').then(function(ps) { var v = ps.val(); return v ? { id: k, at: v.firstAt || v.at || '' } : null; });
+    })).then(function(list) {
+      list = list.filter(Boolean).sort(function(a, b) { return String(b.at).localeCompare(String(a.at)); });
+      if (!list.length) throw new Error('none');
+      return resExtMerciProceed(list[0].id, key, evs[list[0].id]);
+    });
+  }).catch(function() {
+    if (btn) { btn.disabled = false; btn.textContent = 'Continuer'; }
+    resExtError('Nous ne retrouvons pas cette adresse. Vérifie l\'e-mail utilisée à l\'inscription, ou écris à Anaïs.');
+  });
+}
 function resExtMerci(id) {
   resExtMessage('Merci !', '<p class="card-hint">Chargement…</p>');
   var rec = null; try { rec = JSON.parse(localStorage.getItem('sfm_event_lead') || 'null'); } catch (er) {}
   if (!id && rec && rec.evenement) id = rec.evenement;
-  var mine = rec && rec.id && id && rec.evenement === id ? rec : null;
-  if (!id) { resExtMessage('Merci !', '<p class="card-hint">Ton paiement est bien reçu. Ta place est confirmée — à très vite !</p>'); return; }
+  var mine = rec && rec.key && id && rec.evenement === id ? rec : null;
+  if (!mine) { resExtMerciAskEmail(id); return; }
   resDB.ref('reservations/evenements/' + id).once('value').then(function(snap) {
-    var e = snap.val() || {}, now = new Date().toISOString();
-    if (mine) {
-      resDB.ref('acquisition/leads/' + mine.id).update({ status: 'paye', paiement: 'paye', paidAt: now, updatedAt: now, vu: false }).catch(function() {});
-      resDB.ref('reservations/evenements_externes/' + id + '/' + mine.key).update({ paye: true, payeAt: now }).catch(function() {});
-    }
-    resExtMessage('Merci !', '<p class="card-hint">Ton paiement est bien reçu' + (e.nom ? ' pour « ' + esc(e.nom) + ' »' : '') + '. Ta place est confirmée — à très vite !</p>');
-  }).catch(function() {
-    resExtMessage('Merci !', '<p class="card-hint">Ton paiement est bien reçu. À très vite !</p>');
-  });
+    var e = snap.val() || {};
+    return resExtMerciProceed(id, mine.key, e);
+  }).catch(function() { resExtMessage('Merci !', '<p class="card-hint">Ton paiement est bien reçu. À très vite !</p>'); });
 }
+// Envoi direct vers le lien Stripe « personnes extérieures » dès la validation de la venue (1ʳᵉ page).
+function resExtGoPay(e, p, link, saved) {
+  var q = 'first_name=' + encodeURIComponent(p.prenom) + '&last_name=' + encodeURIComponent(p.nom) + '&email=' + encodeURIComponent(p.email) + '&prefilled_email=' + encodeURIComponent(p.email) + '&phone=' + encodeURIComponent(p.telephone) +
+    '&evenement=' + encodeURIComponent(e.nom || '') + '&evenement_date=' + encodeURIComponent(e.date || '') + '&source=' + encodeURIComponent(RES_EXT_SRC);
+  var url = resNormalizeUrl(link) + (link.indexOf('?') === -1 ? '?' : '&') + q;
+  resExtMessage('Merci ' + p.prenom + ' !', '<p class="card-hint">Ta venue est validée — on t\'ouvre la page de paiement…</p><a class="btn-confirm" style="display:block;text-align:center;text-decoration:none" href="' + esc(url) + '">Régler ma place</a>');
+  Promise.race([saved, new Promise(function(r) { setTimeout(r, 1500); })]).then(function() { window.location.href = url; });
+}
+// Fin du parcours : (sans paiement) inscription enregistrée avec les activités ; (après paiement) place confirmée.
+var RES_EXT_PAID = false;
 function resExtFinish(acts) {
   var e = RES_EXT_EVENT, p = RES_EXT_PERSON;
-  var link = resEvIsOffert(e, 'exterieur') ? '' : ((e.liens && e.liens.exterieur) || '');   // « offert » pour les extérieures : aucun paiement
-  var saved = resExtSaveLead(e, p, acts, link ? 'paiement_ouvert' : 'nouveau');
-  if (link) {
-    var q = 'first_name=' + encodeURIComponent(p.prenom) + '&last_name=' + encodeURIComponent(p.nom) + '&email=' + encodeURIComponent(p.email) + '&phone=' + encodeURIComponent(p.telephone) +
-      '&evenement=' + encodeURIComponent(e.nom || '') + '&evenement_date=' + encodeURIComponent(e.date || '') + '&activites=' + encodeURIComponent(acts.map(function(a) { return a.nom; }).join(', ')) + '&source=' + encodeURIComponent(RES_EXT_SRC);
-    var url = resNormalizeUrl(link) + (link.indexOf('?') === -1 ? '?' : '&') + q;
-    // Direct vers le paiement dès la validation (après le choix des activités) : on attend juste (1,5 s max) que le prospect soit enregistré.
-    resExtMessage('Merci ' + p.prenom + ' !', '<p class="card-hint">Ta venue est validée — on t\'ouvre la page de paiement…</p><a class="btn-confirm" style="display:block;text-align:center;text-decoration:none" href="' + esc(url) + '">Régler ma place</a>');
-    Promise.race([saved, new Promise(function(r) { setTimeout(r, 1500); })]).then(function() { window.location.href = url; });
+  resExtSaveLead(e, p, acts);   // met à jour les activités du prospect (son statut, ex. « Payé », est conservé)
+  var actTxt = acts.length ? esc(acts.map(function(a) { return a.nom; }).join(', ')) : '';
+  if (RES_EXT_PAID) {
+    resExtMessage('Merci ' + p.prenom + ' !', '<p class="card-hint">Ton paiement est bien reçu' + (actTxt ? ' et tes activités sont enregistrées : ' + actTxt : '') + '. Ta place à « ' + esc(e.nom || '') + ' » est confirmée — à très vite !</p>');
   } else {
-    resExtMessage('Merci ' + p.prenom + ' !', '<p class="card-hint">Ton inscription à « ' + esc(e.nom || '') + ' » est bien enregistrée (' + esc(resExtDateLabel(e.date, e.heure, e.heureFin)) + ')' + (acts.length ? ' avec : ' + esc(acts.map(function(a) { return a.nom; }).join(', ')) : '') + '. Anaïs te recontactera avec les informations pratiques. À très vite !</p>');
+    resExtMessage('Merci ' + p.prenom + ' !', '<p class="card-hint">Ton inscription à « ' + esc(e.nom || '') + ' » est bien enregistrée (' + esc(resExtDateLabel(e.date, e.heure, e.heureFin)) + ')' + (actTxt ? ' avec : ' + actTxt : '') + '. Anaïs te recontactera avec les informations pratiques. À très vite !</p>');
   }
 }
 
