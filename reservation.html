@@ -1914,11 +1914,12 @@ function resExtActsSubmit() {
 // (envoyée vers Stripe) → paye (retour de Stripe sur cette page avec ?merci=1).
 function resExtLeadId(e, p) { return 'ev_' + String(e.id).replace(/[^\w\-]/g, '') + '_' + resExtKey(p.email); }
 function resExtSaveLead(e, p, acts, status) {
+  var done = Promise.resolve();
   try {
-    if (!resDB || !e || !p) return;
+    if (!resDB || !e || !p) return done;
     var id = resExtLeadId(e, p), now = new Date().toISOString();
     var ref = resDB.ref('acquisition/leads/' + id);
-    ref.transaction(function(cur) {
+    done = ref.transaction(function(cur) {
       var base = {
         funnel: 'evenement', nom: ((p.prenom || '') + ' ' + (p.nom || '')).trim(), email: p.email, telephone: p.telephone || '',
         offreLabel: e.nom || 'Événement', offrePrix: resEvPrix(e, 'exterieur'), evenementId: e.id, evenementNom: e.nom || '', evenementDate: e.date || '',
@@ -1930,9 +1931,10 @@ function resExtSaveLead(e, p, acts, status) {
         return Object.assign({}, cur, base, { status: keep ? cur.status : (status || cur.status || 'nouveau'), source: cur.source || base.source });
       }
       return Object.assign(base, { status: status || 'nouveau', createdAt: now, vu: false });
-    }).catch(function() {});
+    }).then(function() {}, function() {});
     try { localStorage.setItem('sfm_event_lead', JSON.stringify({ id: id, evenement: e.id, key: resExtKey(p.email), at: now })); } catch (er) {}
   } catch (er) {}
+  return done;
 }
 // Retour de Stripe : UNE seule adresse « après le paiement » pour tous les évènements (reservation.html?merci=1).
 // L'évènement est retrouvé grâce à l'inscription faite juste avant sur le même navigateur ; (?evenement=<id>&merci=1 marche aussi).
@@ -1956,13 +1958,14 @@ function resExtMerci(id) {
 function resExtFinish(acts) {
   var e = RES_EXT_EVENT, p = RES_EXT_PERSON;
   var link = resEvIsOffert(e, 'exterieur') ? '' : ((e.liens && e.liens.exterieur) || '');   // « offert » pour les extérieures : aucun paiement
-  resExtSaveLead(e, p, acts, link ? 'paiement_ouvert' : 'nouveau');
+  var saved = resExtSaveLead(e, p, acts, link ? 'paiement_ouvert' : 'nouveau');
   if (link) {
     var q = 'first_name=' + encodeURIComponent(p.prenom) + '&last_name=' + encodeURIComponent(p.nom) + '&email=' + encodeURIComponent(p.email) + '&phone=' + encodeURIComponent(p.telephone) +
       '&evenement=' + encodeURIComponent(e.nom || '') + '&evenement_date=' + encodeURIComponent(e.date || '') + '&activites=' + encodeURIComponent(acts.map(function(a) { return a.nom; }).join(', ')) + '&source=' + encodeURIComponent(RES_EXT_SRC);
     var url = resNormalizeUrl(link) + (link.indexOf('?') === -1 ? '?' : '&') + q;
-    resExtMessage('Merci ' + p.prenom + ' !', '<p class="card-hint">Ton inscription est bien enregistrée. Dernière étape : on te redirige vers la page de confirmation…</p><a class="btn-confirm" style="display:block;text-align:center;text-decoration:none" href="' + esc(url) + '">Continuer</a>');
-    setTimeout(function() { window.location.href = url; }, 1800);
+    // Direct vers le paiement dès la validation (après le choix des activités) : on attend juste (1,5 s max) que le prospect soit enregistré.
+    resExtMessage('Merci ' + p.prenom + ' !', '<p class="card-hint">Ta venue est validée — on t\'ouvre la page de paiement…</p><a class="btn-confirm" style="display:block;text-align:center;text-decoration:none" href="' + esc(url) + '">Régler ma place</a>');
+    Promise.race([saved, new Promise(function(r) { setTimeout(r, 1500); })]).then(function() { window.location.href = url; });
   } else {
     resExtMessage('Merci ' + p.prenom + ' !', '<p class="card-hint">Ton inscription à « ' + esc(e.nom || '') + ' » est bien enregistrée (' + esc(resExtDateLabel(e.date, e.heure, e.heureFin)) + ')' + (acts.length ? ' avec : ' + esc(acts.map(function(a) { return a.nom; }).join(', ')) : '') + '. Anaïs te recontactera avec les informations pratiques. À très vite !</p>');
   }
