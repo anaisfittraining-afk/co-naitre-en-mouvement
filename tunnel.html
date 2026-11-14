@@ -415,8 +415,27 @@ function parisTs(ds,hm){var p=ds.split('-').map(Number),t=hm.split(':').map(Numb
 function parisParts(ts){var o={};new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Paris',hourCycle:'h23',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}).formatToParts(new Date(ts)).forEach(function(x){o[x.type]=x.value});return {ds:o.year+'-'+o.month+'-'+o.day,hm:o.hour+':'+o.minute}}
 function eDayLabel(ds){var p=ds.split('-').map(Number),d=new Date(Date.UTC(p[0],p[1]-1,p[2]));return JOURS[d.getUTCDay()]+' '+p[2]+'/'+p[1]}
 function eLongDate(ds,hm){var p=ds.split('-').map(Number),d=new Date(Date.UTC(p[0],p[1]-1,p[2])),mois=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];return JOURS[d.getUTCDay()]+' '+p[2]+' '+mois[p[1]-1]+(hm?' à '+hm.replace(':','h'):'')}
-function eGcal(){var A=F.agenda||{},ts=ES.slot.ts,end=ES.slot.end,z=function(t){return new Date(t).toISOString().replace(/[-:]/g,'').replace(/\.\d+/,'')};return 'https://calendar.google.com/calendar/render?action=TEMPLATE&text='+encodeURIComponent((F.rdvNom||'Bilan Forme Santé')+' avec Anaïs')+'&dates='+z(ts)+'/'+z(end)+'&details='+encodeURIComponent((A.modalite||'Appel')+(A.lien?'\n'+A.lien:''))}
-function eIcs(){var A=F.agenda||{},z=function(t){return new Date(t).toISOString().replace(/[-:]/g,'').replace(/\.\d+/,'')};var t='BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//co-NAITRE//FR\r\nBEGIN:VEVENT\r\nUID:'+(ES.leadId||Date.now())+'@co-naitre\r\nDTSTAMP:'+z(Date.now())+'\r\nDTSTART:'+z(ES.slot.ts)+'\r\nDTEND:'+z(ES.slot.end)+'\r\nSUMMARY:'+(F.rdvNom||'Bilan Forme Santé')+' avec Anaïs\r\nDESCRIPTION:'+(A.modalite||'Appel')+(A.lien?' '+A.lien:'')+'\r\nEND:VEVENT\r\nEND:VCALENDAR';return 'data:text/calendar;charset=utf-8,'+encodeURIComponent(t)}
+// ---------- Lien Google Meet propre à chaque rendez-vous ----------
+function eVisio(){return ES.meet||(ES.sl&&ES.sl.meetLink)||((F&&F.agenda)||{}).lien||''}
+function eVisioBtn(){var l=eVisio();return l?'<a class="btn ghost" style="text-decoration:none;text-align:center" href="'+esc(l)+'" target="_blank" rel="noopener">🎥 Lien de la visio</a>':''}
+function eVisioShow(){var el=document.getElementById('visioSlot');if(el)el.innerHTML=eVisioBtn()}
+// Crée (ou retrouve) le lien Meet du rendez-vous. Ne bloque jamais : au pire on garde le lien général ou on envoie sans lien.
+function eMeet(leadId,s,who){
+  who=who||{};var A=(F&&F.agenda)||{},fb=A.lien||'';
+  if(!db||!leadId||!s)return Promise.resolve(fb);
+  return db.ref('acquisition/leads/'+leadId+'/meetLink').once('value').then(function(sn){
+    var ex=sn.val();if(ex)return ex;
+    return db.ref('acquisition/emails/meet').once('value').then(function(m){
+      var c=m.val()||{};if(!c.url)return fb;
+      var wait=new Promise(function(r){setTimeout(function(){r('')},7000)});
+      var call=fetch(c.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({secret:c.secret||'',leadId:leadId,titre:(F.rdvNom||'Bilan Forme Santé')+' avec Anaïs',nom:who.nom||ES.nom||'',email:who.email||ES.email||'',tel:who.tel||ES.tel||'',objectif:who.objectif||ES.objectif||'',date:s.date,heure:s.hm,duree:s.dur})})
+        .then(function(r){return r.json()}).then(function(j){if(j&&j.ok&&j.meet){try{db.ref('acquisition/leads/'+leadId).update({meetLink:j.meet,meetEventId:j.eventId||null})}catch(e){}return j.meet}return ''}).catch(function(){return ''});
+      return Promise.race([call,wait]).then(function(l){return l||fb});
+    });
+  }).catch(function(){return fb});
+}
+function eGcal(){var A=F.agenda||{},ts=ES.slot.ts,end=ES.slot.end,z=function(t){return new Date(t).toISOString().replace(/[-:]/g,'').replace(/\.\d+/,'')};return 'https://calendar.google.com/calendar/render?action=TEMPLATE&text='+encodeURIComponent((F.rdvNom||'Bilan Forme Santé')+' avec Anaïs')+'&dates='+z(ts)+'/'+z(end)+'&details='+encodeURIComponent((A.modalite||'Appel')+(eVisio()?'\n'+eVisio():''))+(eVisio()?'&location='+encodeURIComponent(eVisio()):'')}
+function eIcs(){var A=F.agenda||{},z=function(t){return new Date(t).toISOString().replace(/[-:]/g,'').replace(/\.\d+/,'')};var t='BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//co-NAITRE//FR\r\nBEGIN:VEVENT\r\nUID:'+(ES.leadId||Date.now())+'@co-naitre\r\nDTSTAMP:'+z(Date.now())+'\r\nDTSTART:'+z(ES.slot.ts)+'\r\nDTEND:'+z(ES.slot.end)+'\r\nSUMMARY:'+(F.rdvNom||'Bilan Forme Santé')+' avec Anaïs\r\nDESCRIPTION:'+(A.modalite||'Appel')+(eVisio()?' '+eVisio():'')+'\r\n'+(eVisio()?'LOCATION:'+eVisio()+'\r\n':'')+'END:VEVENT\r\nEND:VCALENDAR';return 'data:text/calendar;charset=utf-8,'+encodeURIComponent(t)}
 // ---------- créneaux reliés à l'agenda ----------
 function eLoadSlots(){
   ES.loading=true;ES.slots=null;eRender(true);
@@ -474,7 +493,9 @@ function eBook(){
     return db.ref('acquisition/leads/'+ES.leadId).update({status:'rdv',rdvDate:s.date,rdvHeure:s.hm,rdvDuree:s.dur,rdvTs:new Date(s.ts).toISOString(),vu:false,updatedAt:now}).then(function(){
       ES.busy=false;ES.step='merci';eRender();window.scrollTo(0,0);
       eToValidate(ES.leadId,{nom:ES.nom,email:ES.email,telephone:ES.tel,objectif:ES.objectif},s,false);
-      tMail('rdv',{leadId:ES.leadId,nom:ES.nom,email:ES.email,tel:ES.tel,date_rdv:eLongDate(s.date,s.hm),heure_rdv:s.hm.replace(':','h'),lien_agenda:eGcal()})});
+      var lid=ES.leadId;
+      return eMeet(lid,s).then(function(l){ES.meet=l||'';eVisioShow();
+        return tMail('rdv',{leadId:lid,nom:ES.nom,email:ES.email,tel:ES.tel,date_rdv:eLongDate(s.date,s.hm),heure_rdv:s.hm.replace(':','h'),lien_agenda:eGcal(),lien_visio:ES.meet})})});
   }).catch(function(){ES.busy=false;ES.err='Un souci de connexion est survenu. Réessaie dans un instant.';eRender(true)});
 }
 // ---------- rendu ----------
@@ -656,7 +677,8 @@ function eSalle(keep){
     ES.slTried=true;
     if(!db||!id){ES.slErr=true}
     else{wait('Je prépare ta page…');
-      db.ref('acquisition/leads/'+id).once('value').then(function(sn){var d=sn.val();if(d&&d.funnel===FID){ES.sl=d;ES.slId=id;ES.nom=d.nom||'';ES.prepa=d.prepa||{}}else ES.slErr=true;eSalle()}).catch(function(){ES.slErr=true;eSalle()});
+      db.ref('acquisition/leads/'+id).once('value').then(function(sn){var d=sn.val();if(d&&d.funnel===FID){ES.sl=d;ES.slId=id;ES.nom=d.nom||'';ES.prepa=d.prepa||{};
+        var sl0=eSlotOfLead(d);if(sl0&&!d.meetLink)eMeet(id,sl0,{nom:d.nom,email:d.email,tel:d.telephone,objectif:d.objectif}).then(function(l){if(l&&l!==ES.sl.meetLink&&l!==((F.agenda||{}).lien||'')){ES.sl.meetLink=l;try{eSalle(true)}catch(e){}}})}else ES.slErr=true;eSalle()}).catch(function(){ES.slErr=true;eSalle()});
       return;
     }
   }
@@ -670,10 +692,10 @@ function eSalle(keep){
   var h=eHead()+'<section class="e-hero"><div class="e-eye">Préparons notre appel</div><h1>Ton appel <em>Bilan</em>, '+esc(eFirst())+'</h1><p class="e-intro">Tout est prêt. Voici de quoi arriver sereine, préparée et prête à reprendre ta place.</p></section>'
    +'<section class="e-sec"><div class="card e-wait"><div class="e-cd-l" id="cdl">Dans</div><div class="e-cd" id="cd">…</div><div class="e-cd-s" id="cds"></div>'
    +'<div class="recap"><div><span>Quand</span><b>'+esc(eLongDate(pp.ds,pp.hm))+'</b></div><div><span>Durée</span><b>'+s.dur+' min</b></div><div><span>Comment</span><b>'+esc(A.modalite||'Appel')+'</b></div></div>'
-   +(A.lien?'<a class="btn" id="cdbtn" style="text-decoration:none;text-align:center" href="'+esc(A.lien)+'" target="_blank" rel="noopener">🎥 Rejoindre la visio</a>':'<p class="hint" style="text-align:center;margin:10px 0 0">Anaïs t\'appelle (ou t\'envoie le lien de la visio) à l\'heure choisie.</p>')
+   +(eVisio()?'<a class="btn" id="cdbtn" style="text-decoration:none;text-align:center" href="'+esc(eVisio())+'" target="_blank" rel="noopener">🎥 Rejoindre la visio</a>':'<p class="hint" style="text-align:center;margin:10px 0 0">Anaïs t\'appelle (ou t\'envoie le lien de la visio) à l\'heure choisie.</p>')
    +'<a class="btn ghost" style="text-decoration:none;text-align:center" href="'+eGcal0(s)+'" target="_blank" rel="noopener">📅 Ajouter à mon agenda</a></div></section>'
    +'<section class="e-sec"><div class="e-eye2">À faire avant l\'appel</div><h2 class="e-h2">4 étapes indispensables <span class="e-cnt" id="pcnt">'+n+' / 4</span></h2>'
-   +NF.etapes.map(function(x,i){return '<label class="e-chk'+(et[i+1]?' on':'')+'" id="pe'+(i+1)+'"><input type="checkbox"'+(et[i+1]?' checked':'')+' onchange="ePrepaChk('+(i+1)+',this.checked)"><span><b>'+esc(x[0])+'</b><small>'+esc(x[1])+'</small>'+(i===1&&A.lien?'<a href="'+esc(A.lien)+'" target="_blank" rel="noopener">Ouvrir le lien de la visio</a>':'')+'</span></label>'}).join('')+'</section>'
+   +NF.etapes.map(function(x,i){return '<label class="e-chk'+(et[i+1]?' on':'')+'" id="pe'+(i+1)+'"><input type="checkbox"'+(et[i+1]?' checked':'')+' onchange="ePrepaChk('+(i+1)+',this.checked)"><span><b>'+esc(x[0])+'</b><small>'+esc(x[1])+'</small>'+(i===1&&eVisio()?'<a href="'+esc(eVisio())+'" target="_blank" rel="noopener">Ouvrir le lien de la visio</a>':'')+'</span></label>'}).join('')+'</section>'
    +'<section class="e-sec"><div class="e-eye2">Pour arriver préparée</div><h2 class="e-h2">6 questions à te poser</h2><p class="e-sub">Pas besoin de réponses parfaites. Note ce qui vient, avec tes mots. Tes réponses se sauvegardent toutes seules : tu peux fermer la page et revenir quand tu veux.</p>'
    +NF.questions.map(function(q,i){return '<div class="e-q"><b>'+esc(q)+'</b><textarea class="in" rows="3" placeholder="Tes mots…" oninput="ePrepaRep('+(i+1)+',this.value)">'+esc(rep[i+1]||'')+'</textarea></div>'}).join('')
    +'<p class="e-sub" style="margin-top:6px"><span id="psave"></span></p></section>'
@@ -686,7 +708,7 @@ function eSalle(keep){
   if(!keep)window.scrollTo(0,0);
   ES.cdEnd=s;if(ES.tk)clearInterval(ES.tk);ES.tk=setInterval(eTick,1000);eTick();
 }
-function eGcal0(s){var z=function(t){return new Date(t).toISOString().replace(/[-:]/g,'').replace(/\.\d+/,'')},A=F.agenda||{};return 'https://calendar.google.com/calendar/render?action=TEMPLATE&text='+encodeURIComponent((F.rdvNom||'Bilan Forme Santé')+' avec Anaïs')+'&dates='+z(s.ts)+'/'+z(s.end)+'&details='+encodeURIComponent((A.modalite||'Appel')+(A.lien?'\n'+A.lien:''))}
+function eGcal0(s){var z=function(t){return new Date(t).toISOString().replace(/[-:]/g,'').replace(/\.\d+/,'')},A=F.agenda||{};return 'https://calendar.google.com/calendar/render?action=TEMPLATE&text='+encodeURIComponent((F.rdvNom||'Bilan Forme Santé')+' avec Anaïs')+'&dates='+z(s.ts)+'/'+z(s.end)+'&details='+encodeURIComponent((A.modalite||'Appel')+(eVisio()?'\n'+eVisio():''))+(eVisio()?'&location='+encodeURIComponent(eVisio()):'')}
 function eTick(){
   var el=document.getElementById('cd');if(!el){if(ES.tk){clearInterval(ES.tk);ES.tk=0}return}
   var s=ES.cdEnd,now=Date.now(),d=s.ts-now,l=document.getElementById('cdl'),sub=document.getElementById('cds'),b=document.getElementById('cdbtn');
@@ -773,7 +795,7 @@ function eInfosNext(){
 function eAppelMerciCard(){
   var A=F.agenda||{},s=ES.slot;if(!s)return '';
   return '<div class="big"><div class="em">🌿</div><h2>'+esc(F.merciTitre||'Ton appel est réservé')+', '+esc(eFirst())+' !</h2><p class="hint">'+esc(F.merciTexte||'')+'</p></div><div class="recap"><div><span>Quand</span><b>'+esc(eLongDate(s.date,s.hm))+'</b></div><div><span>Durée</span><b>'+(A.duree||30)+' min</b></div><div><span>Comment</span><b>'+esc(A.modalite||'Appel')+'</b></div></div>'
-   +'<a class="btn" style="text-decoration:none;text-align:center" href="'+eGcal()+'" target="_blank" rel="noopener">📅 Ajouter à mon agenda</a><a class="btn ghost" style="text-decoration:none;text-align:center" href="'+eIcs()+'" download="'+(F.rdvNom?'rendez-vous-co-naitre':'bilan-forme-sante')+'.ics">Télécharger le fichier agenda (.ics)</a>'+(A.lien?'<a class="btn ghost" style="text-decoration:none;text-align:center" href="'+esc(A.lien)+'" target="_blank" rel="noopener">Lien de la visio</a>':'')+eApresRdv();
+   +'<a class="btn" style="text-decoration:none;text-align:center" href="'+eGcal()+'" target="_blank" rel="noopener">📅 Ajouter à mon agenda</a><a class="btn ghost" style="text-decoration:none;text-align:center" href="'+eIcs()+'" download="'+(F.rdvNom?'rendez-vous-co-naitre':'bilan-forme-sante')+'.ics">Télécharger le fichier agenda (.ics)</a>'+'<div id="visioSlot">'+eVisioBtn()+'</div>'+eApresRdv();
 }
 // ---------- page de vente + contrat ----------
 var GRILLE=null,CTR_URL_DEFAULT='https://anaisfittraining-afk.github.io/tableaudebordsuperfitmum/contrat-signature.html';
@@ -953,7 +975,9 @@ function eMerciAppel(rec){
         if(s){u.rdvDate=s.date;u.rdvHeure=s.hm;u.rdvDuree=s.dur;u.rdvTs=new Date(s.ts).toISOString();u.rdvAttente=null}
         db.ref('acquisition/leads/'+rec.id).update(u);
         if(s){db.ref('acquisition/appels/'+s.date+'_'+s.hm.replace(':','')).update({pending:false,leadId:rec.id});
-          ES.slot=s;eToValidate(rec.id,d,s,true);tMail('rdv',{leadId:rec.id,nom:d.nom,email:d.email,tel:d.telephone,date_rdv:eLongDate(s.date,s.hm),heure_rdv:s.hm.replace(':','h'),lien_agenda:eGcal()})}
+          ES.slot=s;eToValidate(rec.id,d,s,true);
+          eMeet(rec.id,s,{nom:d.nom,email:d.email,tel:d.telephone,objectif:d.objectif}).then(function(l){ES.meet=l||'';eVisioShow();
+            tMail('rdv',{leadId:rec.id,nom:d.nom,email:d.email,tel:d.telephone,date_rdv:eLongDate(s.date,s.hm),heure_rdv:s.hm.replace(':','h'),lien_agenda:eGcal(),lien_visio:ES.meet})})}
       }
       try{localStorage.removeItem('sfm_tunnel_lead')}catch(e){}
       done(d);
@@ -1016,9 +1040,28 @@ function tIndex(){
 // ---------- e-mails automatiques (configurés dans le tableau de bord → Acquisition → E-mails automatiques) ----------
 var MAILCFG=null;
 function tFill(s,v){return String(s||'').replace(/\{\{(\w+)\}\}/g,function(m,k){return v[k]==null?'':v[k]})}
+// Mise en page « habillée co-NAÎTRE » (la même que dans le tableau de bord)
+var T_BTN={lien_salle:{t:'✨ Préparons notre appel',main:true},lien_tunnel:{t:'Choisir mon créneau',main:true},lien_contrat:{t:'Voir et signer mon contrat',main:true},lien_whatsapp:{t:'💬 Confirmer sur WhatsApp',main:true},lien_visio:{t:'🎥 Rejoindre la visio',main:true},lien_agenda:{t:'📅 Ajouter à mon agenda',main:false},lien_guide:{t:'📘 Télécharger mon guide (PDF)',main:false}};
+function tEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function tBtn(url,label,main){var st=main?'background:#3F5D46;color:#ffffff;border:2px solid #3F5D46;':'background:#ffffff;color:#3F5D46;border:2px solid #3F5D46;';return '<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:6px auto 14px"><tr><td align="center" style="border-radius:999px;'+(main?'background:#3F5D46':'background:#ffffff')+'"><a href="'+tEsc(url)+'" target="_blank" style="display:inline-block;'+st+'font-family:Karla,Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;line-height:1.2;text-decoration:none;padding:14px 26px;border-radius:999px;text-align:center">'+tEsc(label)+'</a></td></tr></table>'}
+function tVisioInject(corps,v){corps=String(corps||'');if(!v||!v.lien_visio||/\{\{\s*lien_visio\s*\}\}/.test(corps))return corps;var P=corps.replace(/\r/g,'').split(/\n{2,}/),at=-1;for(var i=0;i<P.length;i++){if(/\{\{\s*(date_rdv|heure_rdv)\s*\}\}/.test(P[i])){at=i;break}}if(at<0)at=0;P.splice(at+1,0,'Ton lien de visio (Google Meet) : {{lien_visio}}');return P.join('\n\n')}
+function tBranded(corps,vars){
+  vars=vars||{};var LK=Object.keys(T_BTN),paras=String(corps||'').replace(/\r/g,'').split(/\n{2,}/),body='';
+  paras.forEach(function(p){
+    var btns=[];
+    LK.forEach(function(k){var re=new RegExp('\\{\\{\\s*'+k+'\\s*\\}\\}','g');if(re.test(p)){p=p.replace(re,'');if(vars[k])btns.push(tBtn(vars[k],T_BTN[k].t,T_BTN[k].main));else if(k==='lien_visio')p=''}});
+    p=tFill(p,vars).replace(/[ \t]+\n/g,'\n').trim();
+    if(btns.length)p=p.replace(/\s*:\s*$/,'');
+    if(p){var h=tEsc(p).replace(/(https?:\/\/[^\s<]+)/g,function(u){return '<a href="'+u+'" target="_blank" style="color:#3F5D46;font-weight:700;text-decoration:underline">'+u+'</a>'}).replace(/\n/g,'<br>');body+='<p style="margin:0 0 16px;font-family:Karla,Arial,Helvetica,sans-serif;font-size:16px;line-height:1.65;color:#26312A">'+h+'</p>'}
+    body+=btns.join('');
+  });
+  var logo=location.href.replace(/[?#].*$/,'').replace(/[^\/]*$/,'')+'logo-conaitre-mail.png';
+  return '<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light only"></head><body style="margin:0;padding:0;background:#F7F1E6"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#F7F1E6" style="background:#F7F1E6"><tr><td align="center" style="padding:24px 12px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;background:#ffffff;border:1px solid #E2DCC8;border-radius:16px"><tr><td align="center" style="padding:28px 28px 8px"><img src="'+tEsc(logo)+'" alt="co-NAÎTRE" width="170" style="display:block;border:0;width:170px;max-width:60%;height:auto;margin:0 auto"><div style="font-family:Karla,Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:2.4px;font-weight:700;color:#66735F;margin-top:10px">AVEC ANAÏS FERNET</div></td></tr><tr><td style="padding:0 28px"><div style="height:1px;background:#E2DCC8;margin:16px 0 22px;line-height:1px;font-size:1px">&nbsp;</div></td></tr><tr><td style="padding:0 28px 10px">'+body+'</td></tr><tr><td align="center" style="padding:6px 28px 26px"><div style="height:3px;width:46px;background:#D97A52;margin:6px auto 14px;line-height:3px;font-size:1px;border-radius:3px">&nbsp;</div><div style="font-family:Karla,Arial,Helvetica,sans-serif;font-size:12.5px;color:#66735F;line-height:1.5">Un accompagnement signé <b style="color:#2F4A3A">co-NAÎTRE</b></div></td></tr></table></td></tr></table></body></html>';
+}
 function tMailRaw(c,to,sujet,corps,v){
   var e=c.ejs||{};if(!e.pub||!e.service||!e.template||!to)return Promise.resolve(false);
-  return fetch('https://api.emailjs.com/api/v1.0/email/send',{method:'POST',keepalive:true,headers:{'Content-Type':'application/json'},body:JSON.stringify({service_id:e.service,template_id:e.template,user_id:e.pub,template_params:{to_email:to,subject:tFill(sujet,v),message:tFill(corps,v),from_name:e.fromName||'Anaïs — co-NAÎTRE',reply_to:e.replyTo||e.coachEmail||''}})}).then(function(r){return r.ok}).catch(function(){return false});
+  corps=tVisioInject(corps,v);
+  return fetch('https://api.emailjs.com/api/v1.0/email/send',{method:'POST',keepalive:true,headers:{'Content-Type':'application/json'},body:JSON.stringify({service_id:e.service,template_id:e.template,user_id:e.pub,template_params:{to_email:to,subject:tFill(sujet,v),message:tFill(corps,v),html:tBranded(corps,v),from_name:e.fromName||'Anaïs — co-NAÎTRE',reply_to:e.replyTo||e.coachEmail||''}})}).then(function(r){return r.ok}).catch(function(){return false});
 }
 function tMail(ev,v){
   v=v||{};if(!db||!v.leadId)return Promise.resolve(false);
@@ -1026,7 +1069,7 @@ function tMail(ev,v){
   return get.then(function(c){
     var t=((c.tpl||{})[FID]||{})[ev],jobs=[];
     var base=location.href.replace(/[?#].*$/,'');
-    var vars={prenom:(v.nom||'').split(' ')[0],nom:v.nom||'',offre:v.offre||'',prix:v.prix||'',tunnel:F.nom||FID,lien_tunnel:base+'?f='+FID,lien_contrat:ES.cid?base+'?f='+FID+'&c='+ES.cid:base+'?f='+FID,modalite:(F.agenda&&F.agenda.modalite)||'',date_rdv:v.date_rdv||'',heure_rdv:v.heure_rdv||'',lien_agenda:v.lien_agenda||'',lien_salle:v.leadId?eSalleUrl(v.leadId):'',lien_guide:eGuideUrl(),lien_reservation:'',formule:'',seances_txt:''};
+    var vars={prenom:(v.nom||'').split(' ')[0],nom:v.nom||'',offre:v.offre||'',prix:v.prix||'',tunnel:F.nom||FID,lien_tunnel:base+'?f='+FID,lien_contrat:ES.cid?base+'?f='+FID+'&c='+ES.cid:base+'?f='+FID,modalite:(F.agenda&&F.agenda.modalite)||'',date_rdv:String(v.date_rdv||'').replace(/\s+à\s+\d{1,2}h\d{0,2}\s*$/,''),heure_rdv:v.heure_rdv||'',lien_agenda:v.lien_agenda||'',lien_salle:v.leadId?eSalleUrl(v.leadId):'',lien_visio:v.lien_visio||'',lien_whatsapp:(F.type==='appel'?'https://wa.me/33637242874?text='+encodeURIComponent('Bonjour Anaïs, c\'est '+((v.nom||'').split(' ')[0])+'. Je te confirme ma présence pour notre Bilan Forme Santé'+(v.date_rdv?' '+v.date_rdv+' à '+v.heure_rdv:'')+' 🌿'):''),lien_guide:eGuideUrl(),lien_reservation:'',formule:'',seances_txt:''};
     var claim=function(key){return db.ref('acquisition/leads/'+v.leadId+'/mails/'+key).transaction(function(x){return x?undefined:new Date().toISOString()}).then(function(r){return r.committed})};
     if(t&&t.on&&v.email)jobs.push(claim(ev).then(function(ok){return ok?tMailRaw(c,v.email,t.sujet,t.corps,vars):false}));
     if((c.coach||{})[FID]&&(c.ejs||{}).coachEmail){
