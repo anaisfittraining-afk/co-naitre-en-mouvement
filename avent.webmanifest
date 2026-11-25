@@ -1,0 +1,14 @@
+{
+  "name": "Calendrier de l'Avent co-NAÎTRE",
+  "short_name": "Avent co-NAÎTRE",
+  "start_url": "avent.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#F7F1E6",
+  "theme_color": "#F7F1E6",
+  "icons": [
+    { "src": "avent_icone_192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "avent_icone_512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "avent_icone_512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
