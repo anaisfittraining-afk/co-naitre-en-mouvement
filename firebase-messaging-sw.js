@@ -27,7 +27,7 @@ messaging.onBackgroundMessage(function(payload) {
   var d = (payload && payload.data) || {};
   return self.registration.showNotification(d.title || 'co-NAÎTRE en mouvement', {
     body: d.body || 'Tu as un nouveau message.',
-    icon: 'icon-192.png', badge: 'icon-192.png', tag: d.tag || 'message', renotify: true, silent: false, vibrate: [200, 100, 200, 100, 200],
+    icon: d.icon || 'icon-192.png', badge: 'icon-192.png', tag: d.tag || 'message', renotify: true, silent: false, vibrate: [200, 100, 200, 100, 200],
     data: { url: d.url || self.registration.scope }
   }).then(function() { return badgeBump(); }).then(function(n) {
     if (self.navigator && self.navigator.setAppBadge) return self.navigator.setAppBadge(n);
@@ -35,9 +35,18 @@ messaging.onBackgroundMessage(function(payload) {
 });
 self.addEventListener('notificationclick', function(event) {
   event.notification.close();
-  var url = (event.notification.data && event.notification.data.url) || self.registration.scope;
+  var target = new URL((event.notification.data && event.notification.data.url) || self.registration.scope, self.registration.scope).href;
+  var base = function(u) { return String(u).split('#')[0].split('?')[0]; };
   event.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(list) {
-    for (var i = 0; i < list.length; i++) { if (list[i].url.indexOf(self.registration.scope) === 0 && 'focus' in list[i]) return list[i].focus(); }
-    return clients.openWindow(url);
+    var i;
+    // 1) la page demandée est déjà ouverte : on la montre
+    for (i = 0; i < list.length; i++) { if (base(list[i].url) === base(target) && 'focus' in list[i]) return list[i].focus(); }
+    // 2) une autre page de l'appli est ouverte : on la fait aller sur la page demandée
+    for (i = 0; i < list.length; i++) {
+      if (list[i].url.indexOf(self.registration.scope) === 0 && 'focus' in list[i]) {
+        return list[i].focus().then(function(w) { return (w && w.navigate) ? w.navigate(target) : clients.openWindow(target); }).catch(function() { return clients.openWindow(target); });
+      }
+    }
+    return clients.openWindow(target);
   }));
 });

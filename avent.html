@@ -269,6 +269,62 @@
     }
   };
 
+  // Contenu par défaut des 24 cases : affiché tant qu'une case n'est pas remplie dans le tableau de bord.
+  var DEF_CASES = {
+    prospect: {
+      1: { titre: "Bienvenue dans ton calendrier", texte: "Coucou, je suis contente que tu sois là.\n\nPendant 24 jours, une petite case par jour, rien que pour toi. Pas de défi à réussir, pas de note : juste de petits moments pour souffler avant Noël.\n\nAujourd’hui, une seule chose : choisis ce que tu aimerais ressentir le 24 décembre (calme, légère, fière de toi, reposée…). Écris ce mot quelque part où tu le verras : sur ton téléphone, sur un post-it, sur le miroir.\n\nÀ demain pour la case 2 🎄" },
+      2: { titre: "5 minutes pour respirer", texte: "Installe-toi assise, les pieds bien posés au sol, une main sur le ventre.\n\n1. Inspire doucement par le nez en comptant jusqu’à 4, le ventre se gonfle.\n2. Expire lentement par la bouche en comptant jusqu’à 6, comme si tu soufflais sur une bougie sans l’éteindre.\n3. Recommence pendant 5 minutes (environ 30 respirations).\n\nSi les pensées partent dans tous les sens, c’est normal : ramène simplement ton attention sur ton souffle. Tu peux la refaire quand la journée devient trop pleine." },
+      3: { titre: "Le tri des « il faut »", texte: "Prends une feuille et écris tout ce que tu te dis « il faut que je… » avant Noël. Vide tout, sans filtrer.\n\nPuis entoure uniquement :\n• ce qui compte vraiment pour toi,\n• ce que quelqu’un d’autre peut faire,\n• ce qui peut attendre janvier.\n\nBarre le reste. Une liste raccourcie, c’est déjà une charge en moins dans la tête." },
+      4: { titre: "Un matin plus doux", texte: "Pour aujourd’hui, on ne change pas ta vie : on adoucit juste les 10 premières minutes de ta journée.\n\nAvant de regarder ton téléphone :\n• bois un grand verre d’eau,\n• étire-toi les bras vers le plafond en inspirant,\n• dis-toi à voix haute une phrase gentille (par exemple « je fais de mon mieux, et c’est déjà bien »).\n\nTu peux recommencer demain : c’est la répétition qui fait la différence, pas la perfection." },
+      5: { titre: "Ton rendez-vous avec moi", texte: "Aujourd’hui, je t’invite à faire le point avec moi.\n\nLe bilan est un échange en tête-à-tête pour parler de ton énergie, de ton corps, de ton quotidien de maman, et trouver ton prochain petit pas, sans pression. Il est offert avec ton calendrier.\n\nRéserve ton créneau juste en dessous, quand tu veux." },
+      6: { titre: "Détendre nuque et épaules", texte: "Les épaules montent toute seule quand on porte tout. Voici 4 minutes pour les relâcher, debout ou assise :\n\n1. Roule les épaules vers l’arrière, 10 fois, lentement.\n2. Penche l’oreille vers l’épaule droite, reste 5 respirations, puis change de côté.\n3. Croise les mains derrière la tête, laisse le poids des coudes ouvrir la poitrine, 5 respirations.\n4. Termine en secouant doucement les bras 20 secondes.\n\nStop dès que tu ressens une douleur : on cherche le confort, jamais la performance." },
+      7: { titre: "Mon espace co-NAÎTRE : ta formation en 3 phases", texte: "Quand les mamans passent un cap, c’est rarement par manque de volonté : c’est qu’il leur manque un cadre simple, adapté à leur vie.\n\nMon espace co-NAÎTRE, c’est une formation en 3 phases, des ressources, ton programme personnalisé, des séances de sport en visio et un vocal de moi après chaque bilan.\n\nPour le découvrir à ton rythme, on commence par ton Bilan Forme Santé offert.", lien: TUNNEL + '?f=bilan', lienLabel: "Réserver mon Bilan Forme Santé offert" },
+      8: { texte: "Bonne nouvelle : aujourd’hui, je t’ouvre l’application co-NAÎTRE pour que tu la découvres de l’intérieur. Active ton essai juste en dessous." },
+      9: { titre: "Le rituel du soir en 3 gestes", texte: "Pour finir la journée en douceur :\n\n1. Écris les 3 choses à ne pas oublier demain, puis ferme le carnet : ce n’est plus dans ta tête.\n2. Baisse les lumières et éloigne les écrans 20 minutes avant de dormir.\n3. Fais 6 grandes respirations dans ton lit, l’expiration plus longue que l’inspiration.\n\nTu n’as pas besoin de dormir 8 heures d’un coup : on soigne d’abord la qualité de tes soirées." },
+      10: { titre: "10 minutes de mouvement au salon", texte: "Un mini-circuit, sans matériel. Fais chaque mouvement 40 secondes, 20 secondes de pause, et refais le tour deux fois :\n\n1. Squats lents (assise-debout comme sur une chaise).\n2. Pompes contre un mur ou contre le plan de travail.\n3. Pas chassés d’un côté à l’autre.\n4. Planche sur les genoux ou sur les mains.\n\nAdapte l’intensité à toi. Si tu as une douleur, une grossesse récente, une rééducation en cours, demande d’abord l’avis de ton médecin ou de ta sage-femme." },
+      11: { texte: "Aujourd’hui, je t’ouvre l’application de la famille. Prends le temps de la tester avec ta petite tribu : les tâches, les enfants, la liste de courses. Active ton essai juste en dessous." },
+      12: { titre: "15 minutes dehors", texte: "Sors 15 minutes, même s’il fait gris. Pas de podcast ni de liste dans la tête, si tu peux.\n\nPendant ta marche, repère :\n• 5 choses que tu vois,\n• 4 choses que tu entends,\n• 3 choses que tu sens (le vent, le froid, tes pieds sur le sol).\n\nLa lumière du jour et le mouvement font du bien au moral, même à petite dose." },
+      13: { titre: "Trois choses qui ont été bien aujourd’hui", texte: "Ce soir, écris 3 choses qui se sont bien passées, aussi petites soient-elles : un café chaud, un câlin, un feu vert.\n\nPuis ajoute pour chacune : « pourquoi c’était bien ». Ce petit exercice entraîne le regard à repérer ce qui va bien, surtout les jours chargés." },
+      14: { texte: "Cette semaine, je t’ouvre co-NAÎTRE en mouvement : du Pilates qui s’adapte à ta vie de maman, avec ta place réservée en deux gestes. Active ta semaine d’essai juste en dessous." },
+      15: { titre: "co-NAÎTRE son foyer : moins de charge pour toi", texte: "Tu portes souvent l’organisation de la maison dans ta tête. Avec co-NAÎTRE son foyer, toute la famille participe, les enfants gagnent en autonomie et la liste de courses se fait toute seule.\n\nSi tu as envie de voir comment ça marche, c’est ici.", lien: TUNNEL + '?f=foyer', lienLabel: "Voir l’offre co-NAÎTRE son foyer" },
+      16: { titre: "Respirer avec le ventre et les côtes", texte: "Une respiration qui aide à retrouver ton centre :\n\n1. Allongée sur le dos, genoux pliés, une main sur les côtes basses.\n2. Inspire par le nez : sens les côtes s’écarter sous tes mains.\n3. Expire doucement en laissant les côtes se refermer, comme un accordéon.\n4. Fais 8 respirations, calmement.\n\nCe geste est doux et sans effort. Si tu as des questions sur ton périnée ou ton ventre (après une grossesse par exemple), demande conseil à une professionnelle." },
+      17: { titre: "Une collation qui tient", texte: "Quand l’après-midi tire, l’envie de sucre arrive vite. Une idée simple : associer une source de protéines et un fruit ou des fibres.\n\n• Yaourt nature + fruit + quelques noix.\n• Pomme + une poignée d’amandes.\n• Tartine de pain complet + fromage frais.\n\nIl n’y a rien d’interdit : il s’agit juste de préparer à l’avance quelque chose de bon pour ne pas craquer par fatigue." },
+      18: { titre: "Poser une limite avec douceur", texte: "Dire non, c’est parfois la plus grande preuve d’amour pour soi. Quelques phrases prêtes à l’emploi :\n\n• « Merci de penser à moi, cette année je ne pourrai pas. »\n• « Je ne suis pas disponible, mais je peux t’aider à trouver une autre solution. »\n• « J’ai besoin d’y réfléchir, je te réponds demain. »\n\nChoisis la phrase qui te ressemble, écris-la, et utilise-la une fois cette semaine." },
+      19: { titre: "Une soirée sans écran", texte: "Ce soir, 45 minutes sans écran, rien que pour toi : un bain ou une douche chaude, un livre, une infusion, de la musique.\n\nPrévois-le maintenant : à quelle heure, et qu’est-ce que tu vas faire ? Ce qui est planifié a plus de chances d’arriver." },
+      20: { titre: "Ce que j’ai déjà accompli", texte: "Prends 5 minutes pour écrire ce que tu as traversé et réussi cette année, même ce qui te semble banal : une organisation, un rendez-vous, une journée où tu as tenu bon.\n\nRelis ta liste à voix haute. Tu mérites de le voir." },
+      21: { titre: "co-NAÎTRE en mouvement : le Pilates des mamans", texte: "Du Pilates qui s’adapte à ta vie : en présentiel, en visio ou en replay, avec ta place réservée en deux gestes.\n\nSi tu as envie de bouger sans te mettre la pression, viens voir comment ça se passe.", lien: TUNNEL + '?f=mouvement', lienLabel: "Voir l’offre co-NAÎTRE en mouvement" },
+      22: { titre: "Mes 3 priorités pour janvier", texte: "Avant la fin de l’année, choisis 3 priorités pour ton premier mois (pas plus). Pour chacune, écris :\n\n• ce que tu veux,\n• la première action de 10 minutes que tu peux faire dans la semaine,\n• à quel moment de ta journée tu la places.\n\nPetit, concret, réaliste : c’est comme ça qu’un projet tient." },
+      23: { titre: "Le cadeau que je m’offre", texte: "Demain c’est Noël. Aujourd’hui, offre-toi quelque chose de simple : une heure rien que pour toi cette semaine, un thé dans ton plus beau mug, une marche sans enfants, un coup de fil à une amie.\n\nFixe le moment dans ton agenda, comme un vrai rendez-vous." },
+      24: { titre: "Mon cadeau de Noël pour toi", texte: "Quelle belle route ensemble pendant ces 24 jours. J’espère que ces petites cases t’ont fait du bien.\n\nPour finir, j’ai un cadeau pour toi : tu le trouves juste en dessous.\n\nJe te souhaite un Noël doux, et à très vite." }
+    },
+    cliente: {
+      1: { titre: "Vider sa tête : une seule liste", texte: "Mission du jour : poser tout ce qu’il reste à faire avant Noël sur une seule liste.\n\n1. Prends une feuille ou ton téléphone.\n2. Écris tout, sans trier : cadeaux, repas, ménage, rendez-vous, messages à envoyer.\n3. Entoure les 5 choses les plus importantes.\n4. Le reste, on s’en occupe dans les prochains jours.\n\nTa tête n’est pas faite pour tout retenir : le papier le fait pour toi." },
+      2: { titre: "5 minutes pour tout poser", texte: "Installe-toi, les pieds au sol, une main sur le ventre.\n\n1. Inspire par le nez en comptant jusqu’à 4.\n2. Expire doucement par la bouche en comptant jusqu’à 6.\n3. Recommence 5 minutes.\n\nÀ chaque expiration, imagine que tu poses un « il faut » par terre. Tu pourras le reprendre plus tard, si tu le veux vraiment." },
+      3: { titre: "Traditions : ce qu’on garde, ce qu’on laisse", texte: "Mission : trier tes traditions de Noël.\n\n1. Écris toutes celles que tu fais d’habitude (repas, décorations, visites, cartes…).\n2. Pour chacune, demande-toi : « Est-ce que j’y prends du plaisir ? Est-ce que ma famille y tient ? »\n3. Garde celles qui ont un oui, simplifie celles qui ont un peut-être, laisse tomber celles qui ont un non.\n\nUne tradition qui épuise n’est plus un cadeau." },
+      4: { titre: "Les cadeaux : qui, quoi, combien", texte: "Mission : un tableau simple pour les cadeaux.\n\n1. Liste les personnes à qui tu offres quelque chose.\n2. Pour chacune : une idée, un budget, une date limite d’achat.\n3. Fixe un plafond total et tiens-toi à cette limite.\n\nAstuce : propose de tirer au sort dans la famille élargie, ou d’offrir un cadeau par foyer." },
+      5: { titre: "La liste de souhaits des enfants", texte: "En famille : demande à chaque enfant de choisir 3 cadeaux, pas plus : un qu’il veut, un dont il a besoin, un pour lire ou créer.\n\nTu peux en faire un petit moment à deux : il dessine ou écrit sa liste, tu l’aides à choisir. Moins de choix, c’est moins de frustration et moins de dépenses.\n\nTu peux noter les idées dans l’appli foyer.", lien: SITE + 'Cooperation-familiale/', lienLabel: "Ouvrir co-NAÎTRE son foyer" },
+      6: { titre: "Répartir : qui fait quoi dans le foyer", texte: "Mission : partager la charge.\n\n1. Écris les tâches de la semaine de Noël (courses, cuisine, rangement, décoration, vaisselle).\n2. Attribue chacune à un membre de la famille : adulte ou enfant, selon l’âge.\n3. Affiche la liste à un endroit visible.\n\nNe fais pas ce que quelqu’un d’autre peut faire à ta place." },
+      7: { titre: "10 minutes à soi, bloquées dans l’agenda", texte: "Aujourd’hui, bloque 10 minutes rien que pour toi dans ton agenda, comme un vrai rendez-vous : un thé, une marche, une pause sans écran.\n\nPuis fais-le vraiment. Si quelqu’un te demande quelque chose à ce moment-là, tu as déjà un rendez-vous." },
+      8: { titre: "Dire non sans culpabiliser", texte: "Mission : choisir une invitation ou une attente à laquelle tu dis non cette année.\n\nQuelques phrases :\n• « Merci de penser à moi, cette année je ne pourrai pas. »\n• « Ce sera plutôt une autre fois. »\n• « J’ai besoin d’y réfléchir, je te réponds demain. »\n\nTu n’as pas à te justifier longuement. Un non simple et poli suffit." },
+      9: { titre: "Le planning à rebours", texte: "Mission : partir du 24 et remonter dans le temps.\n\n1. Écris la date de Noël.\n2. Place les grandes étapes : repas, cadeaux emballés, courses alimentaires, ménage, décoration.\n3. Pour chacune, note le jour où tu la fais, en remontant.\n\nRépartis sur plusieurs jours : une grosse tâche par jour maximum." },
+      10: { titre: "Cadeaux sans stress", texte: "Des idées par profil, faciles à trouver :\n\n• Gourmand : coffret thé, chocolats, pot de miel.\n• Curieux : livre, jeu de société, abonnement.\n• Câlin : plaid, bougie, mug.\n• Enfant : activité à faire ensemble, jeu de construction.\n\nEmballage express : papier kraft, un bout de ficelle et une branche de sapin. Pas besoin de plus." },
+      11: { titre: "Une mission par enfant", texte: "En famille : donne à chaque enfant une petite mission de Noël adaptée à son âge : décorer le sapin, choisir la musique, dresser la table, préparer une carte pour quelqu’un.\n\nIl se sent utile, et toi tu as de l’aide. Tu peux les noter dans l’appli foyer et les cocher ensemble.", lien: SITE + 'Cooperation-familiale/', lienLabel: "Ouvrir co-NAÎTRE son foyer" },
+      12: { titre: "Étirer nuque et épaules en 5 minutes", texte: "1. Roule les épaules vers l’arrière, 10 fois.\n2. Penche l’oreille vers l’épaule droite, 5 respirations, puis à gauche.\n3. Croise les mains derrière la tête et ouvre doucement la poitrine, 5 respirations.\n4. Secoue les bras 20 secondes.\n\nArrête si tu ressens une douleur : on cherche le confort." },
+      13: { titre: "Repas à plusieurs : qui apporte quoi", texte: "Mission : si tu reçois, ne cuisine pas tout toi-même.\n\n1. Écris les plats du repas.\n2. Propose à chaque invité d’en apporter un (entrée, dessert, boisson, pain).\n3. Garde pour toi ce que tu aimes cuisiner.\n\nDemander de l’aide n’est pas un aveu de faiblesse : c’est de l’organisation." },
+      14: { titre: "Un menu simple : trois plats maximum", texte: "Un menu de fête réussi tient en trois plats : une entrée, un plat, un dessert, et un apéro léger.\n\nChoisis des recettes que tu connais déjà ou que tu peux préparer à l’avance. Les six recettes des prochains jours sont pensées pour ça : toasts, velouté, plat de fête, gratin, bûche et boisson sans alcool." },
+      15: { titre: "Recette : toasts apéro légers", texte: "Pour 4 personnes, 15 minutes, sans cuisson.\n\nIngrédients : 8 tranches de pain complet ou de pain de seigle, 150 g de fromage frais, 4 tranches de saumon fumé, un demi-citron, de l’aneth ou de la ciboulette, du poivre.\n\n1. Toaste les tranches de pain, coupe-les en deux.\n2. Mélange le fromage frais avec le jus de citron, les herbes ciselées et le poivre.\n3. Étale sur les toasts et pose un morceau de saumon fumé.\n\nAstuce : tu peux préparer la crème la veille." },
+      16: { titre: "Recette : velouté de potimarron et châtaigne", texte: "Pour 4 personnes, 35 minutes.\n\nIngrédients : 1 potimarron (environ 800 g), 150 g de châtaignes cuites, 1 oignon, 1 cuillère à soupe d’huile d’olive, 75 cl de bouillon de légumes, sel, poivre, une pointe de muscade.\n\n1. Coupe le potimarron en cubes (la peau se mange), émince l’oignon.\n2. Fais revenir l’oignon dans l’huile, ajoute le potimarron et les châtaignes, couvre de bouillon.\n3. Laisse cuire 25 minutes, puis mixe.\n4. Assaisonne avec le sel, le poivre et la muscade.\n\nAstuce : ajoute quelques éclats de châtaigne ou de noisette pour le croquant." },
+      17: { titre: "Recette : plat de fête allégé (volaille ou magret)", texte: "Pour 4 personnes, 1 h environ.\n\nIngrédients : 4 suprêmes de volaille (ou 2 magrets de canard dégraissés), 2 oranges, 1 cuillère à soupe de miel, 1 cuillère à soupe de sauce soja, du thym, sel, poivre, 1 cuillère à soupe d’huile d’olive.\n\n1. Fais dorer la viande 4 minutes de chaque côté (pour le magret, côté peau d’abord, en retirant l’excès de gras).\n2. Ajoute le jus des oranges, le miel, la sauce soja et le thym.\n3. Laisse mijoter à feu doux 20 à 25 minutes (volaille) ou termine au four 10 minutes à 180 °C (magret).\n4. Nappe de sauce avant de servir.\n\nVérifie toujours que la volaille est bien cuite à cœur." },
+      18: { titre: "Les courses malignes", texte: "Mission : une seule liste, zéro gaspillage.\n\n1. Reprends ton menu et écris les ingrédients de chaque recette.\n2. Regarde ce que tu as déjà dans les placards et barre-le.\n3. Classe la liste par rayon pour aller plus vite.\n4. Pour ce qui se conserve (épicerie, boissons), achète dès maintenant ; pour le frais, la veille ou le matin.\n\nTu peux utiliser la liste de courses de l’appli foyer pour la partager.", lien: SITE + 'Cooperation-familiale/', lienLabel: "Ouvrir la liste de courses" },
+      19: { titre: "Recette : gratin de légumes d’hiver", texte: "Pour 4 personnes, 1 h environ.\n\nIngrédients : 1 petit chou-fleur, 3 carottes, 2 panais ou navets, 1 poireau, 20 cl de crème légère ou de lait, 30 g de parmesan râpé, sel, poivre, muscade.\n\n1. Coupe les légumes en morceaux et fais-les cuire 10 minutes à la vapeur.\n2. Dépose-les dans un plat, verse la crème mélangée à la muscade, au sel et au poivre.\n3. Saupoudre de parmesan.\n4. Enfourne 20 à 25 minutes à 190 °C jusqu’à ce que ce soit doré.\n\nÀ préparer la veille et à passer au four le jour J." },
+      20: { titre: "Recette : bûche allégée aux fruits", texte: "Pour 6 personnes, 30 minutes de préparation, 2 h de repos.\n\nIngrédients : 1 génoise ou 1 roulé nature du commerce, 400 g de fromage blanc, 3 cuillères à soupe de miel, 300 g de fruits rouges, 1 cuillère à soupe de cacao non sucré.\n\n1. Mélange le fromage blanc avec le miel.\n2. Déroule le gâteau, étale la crème et pose les fruits.\n3. Reroule délicatement et dépose au frais 2 heures.\n4. Saupoudre de cacao avant de servir.\n\nAstuce : décore avec des framboises et quelques feuilles de menthe." },
+      21: { titre: "Recette : boisson festive sans alcool", texte: "Pour 6 verres, 10 minutes.\n\nIngrédients : 50 cl de jus de pomme pétillant (ou d’eau gazeuse + jus de pomme), 20 cl de jus de canneberge, 1 orange en rondelles, quelques grenades ou framboises, de la menthe, des glaçons.\n\n1. Remplis un grand pichet de glaçons.\n2. Verse les jus, ajoute l’orange, les fruits et la menthe.\n3. Sers frais, dans de jolis verres.\n\nUne boisson pour tout le monde, enfants et adultes." },
+      22: { titre: "Préparer à l’avance et check-list de la veille", texte: "Mission du jour : tout ce qui peut être fait avant, fais-le.\n\nCheck-list de la veille :\n• La table est dressée.\n• Les plats du lendemain sont préparés ou prêts à cuire.\n• Les cadeaux sont emballés.\n• Les boissons sont au frais.\n• Tu as noté l’heure de chaque étape du jour J.\n\nPuis range ton téléphone et repose-toi : demain, tout est prêt." },
+      23: { titre: "Savourer sans culpabilité et protéger son sommeil", texte: "Demain, mange ce qui te fait plaisir, en prenant le temps. Un repas de fête n’efface pas tes efforts.\n\nQuelques repères simples :\n• Mange lentement, pose ta fourchette entre deux bouchées.\n• Écoute ta faim et ta satiété.\n• Bois de l’eau tout au long du repas.\n\nCe soir, essaie de te coucher à une heure raisonnable : un bon sommeil rend la fête plus agréable." },
+      24: { titre: "Mon cadeau de Noël pour toi", texte: "Bravo : tu as traversé ces 24 jours.\n\nTu as posé des listes, partagé la charge, pris du temps pour toi, cuisiné sans t’épuiser. C’est exactement le type de petits pas qui changent un quotidien.\n\nPour terminer, je t’offre une guidance personnelle : on fait le point sur ce que tu as mis en place et on prépare ton plan simple pour janvier. Tu peux la réserver juste en dessous.\n\nJe te souhaite un très beau Noël." }
+    }
+  };
+
   // ── Petits outils ──────────────────────────────────────────────────────────────────────────────
   var $ = function (id) { return document.getElementById(id); };
   function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
@@ -430,7 +486,8 @@
     var c = S.cfg;
     return '<footer><p>Le calendrier est un contenu numérique, accessible dès le paiement. ' + (c.contactMail ? 'Une question ? <a href="mailto:' + esc(c.contactMail) + '">' + esc(c.contactMail) + '</a>.' : '') + '</p></footer>';
   }
-  function giftButton() { return '<div class="sep">pour faire plaisir</div><button class="btn line" data-act="gift">🎁 Offrir le calendrier à une amie</button>'; }
+  function shareButton() { return '<button class="btn line" data-act="share" type="button" style="margin-top:10px">💌 Partager le calendrier à mes amies</button>'; }
+  function giftButton() { return '<div class="sep">pour faire plaisir</div><button class="btn line" data-act="gift">🎁 Offrir le calendrier à une amie</button>' + shareButton(); }
 
   // ── Rendu : page d'accueil (pas d'accès) ───────────────────────────────────────────────────────
   // Le calendrier est « ouvert » si l'interrupteur du tableau de bord est allumé, ou si la date d'ouverture automatique est passée.
@@ -443,6 +500,7 @@
       + '<ul class="list"><li>Une case par jour du 1er au 24 décembre, qui s’ouvre à sa date.</li><li>Des petits moments pensés pour les mamans, à vivre en quelques minutes.</li><li>Un rendez-vous bilan avec Anaïs et un cadeau de Noël dans la case du 24.</li></ul></div>';
     h += '<div class="card"><h3>Le calendrier en un coup d’œil</h3>' + doorsHtml('locked') + '<p class="muted" style="margin-top:10px">Les cases s’ouvrent après ton inscription et ton paiement.</p></div>';
 
+    h += npCardHtml();
     if (S.step === 'pay' && S.prospect) {
       h += payCardHtml();
     } else {
@@ -465,6 +523,8 @@
       + '<div id="kMsg"></div><button class="btn line" type="submit">Ouvrir mon calendrier de cliente</button></form></div>';
 
     h += giftButton();
+    } else {
+    h += '<div class="sep">pour faire plaisir</div>' + shareButton();
     }
     h += footerHtml() + '</div>';
     $('app').innerHTML = h;
@@ -523,6 +583,7 @@
     h += '<div class="card"><div class="topbar"><div><h2 style="margin-bottom:2px">Bonjour' + (a.prenom ? ' ' + esc(a.prenom) : '') + ' 🎄</h2><p class="muted" style="margin:0">' + (before ? 'Ton calendrier s’ouvre le ' + esc(dayLabel(1)) + '.' : cur > 24 ? 'Toutes les cases sont ouvertes. Reviens quand tu veux.' : 'Aujourd’hui : case ' + cur + '.') + '</p></div><span class="tag">' + (par === 'cliente' ? 'Parcours clientes' : 'Parcours découverte') + (S.preview ? ' · aperçu' : '') + '</span></div>';
     if (c.whatsappTel) h += '<div class="msg" style="margin-top:14px">💬 Pour rejoindre le groupe WhatsApp du calendrier, enregistre le numéro d’Anaïs : <b>' + esc(c.whatsappTel) + '</b>, puis envoie-lui un message.</div>';
     h += doorsHtml('live') + '</div>';
+    h += npCardHtml();
     if (par === 'prospect') h += appsHtml();
     h += giftButton();
     h += footerHtml() + '</div>';
@@ -631,11 +692,17 @@
     }
     return h;
   }
+  // Une case remplie dans le tableau de bord a toujours la priorité ; sinon on affiche le contenu par défaut.
+  function caseOf(par, n) {
+    var d = (S.cases[par] || {})[n] || {};
+    if (d.titre || d.texte || d.video || d.lien || d.image || (d.prog && d.prog.titre)) return d;
+    return (DEF_CASES[par] || {})[n] || {};
+  }
   function openDoor(n) {
     var a = S.access; if (!a) return;
     var cur = currentDay();
     if (n > cur) { toast('Cette case s’ouvre le ' + dayLabel(n) + '.'); return; }
-    var par = a.parcours, d = (S.cases[par] || {})[n] || {}, h = '', es = essaisOfDay(n, par), titre = d.titre || (es.length ? (es.length > 1 ? 'Ton essai offert' : ESSAIS[es[0]].titre) : 'Case ' + n);
+    var par = a.parcours, d = caseOf(par, n), h = '', es = essaisOfDay(n, par), titre = d.titre || (es.length ? (es.length > 1 ? 'Ton essai offert' : ESSAIS[es[0]].titre) : 'Case ' + n);
     var chip = es.length ? 'Essai offert' : (d.video ? 'Vidéo' : (d.prog && d.prog.titre ? 'Programme' : (d.lien ? 'À découvrir' : 'À lire')));
     h += '<div class="modal" data-act="closeBg"><div class="sheet" role="dialog" aria-modal="true" aria-label="Case ' + n + '"><button class="x" data-act="close" aria-label="Fermer">×</button>';
     h += '<div class="daytag">Case ' + n + ' · ' + esc(dayLabel(n)) + '</div>';
@@ -669,7 +736,7 @@
     h += '<div class="modal" data-act="closeBg"><div class="sheet" role="dialog" aria-modal="true" aria-label="Offrir le calendrier"><button class="x" data-act="close" aria-label="Fermer">×</button>';
     h += '<div class="daytag">Un cadeau qui fait du bien</div><h2>Offrir le calendrier à une amie</h2>';
     if (!g) {
-      h += '<p>Pour <b>' + esc(euro(c.prix)) + '</b>, ton amie reçoit le calendrier complet, avec ton petit mot en première page. Elle l’ouvre quand elle veut grâce à un lien.</p>'
+      h += '<p>Pour <b>' + esc(euro(c.prix)) + '</b>, ton amie reçoit le calendrier complet, avec ton petit mot en première page. Elle l’ouvre quand elle veut grâce à un lien. Tu peux en offrir à plusieurs amies : un cadeau par amie.</p>'
         + '<form id="fGift" novalidate><label class="f" for="gDeNom">Ton prénom</label><input type="text" id="gDeNom" value="' + esc(k.prenom || '') + '">'
         + '<label class="f" for="gDeMail">Ton adresse mail</label><input type="email" id="gDeMail" value="' + esc(k.email || '') + '">'
         + '<label class="f" for="gAmie">Le prénom de ton amie</label><input type="text" id="gAmie">'
@@ -687,7 +754,8 @@
         var link = location.origin + location.pathname + '?cadeau=' + g.id;
         h += '<p style="margin-top:12px">C’est activé ! Envoie ce lien à ' + esc(g.amie) + ' :</p><input type="text" readonly id="gLink" value="' + esc(link) + '" onclick="this.select()">'
           + '<button class="btn" data-act="copyGift" data-link="' + esc(link) + '">Copier le lien</button>'
-          + '<a class="btn line" target="_blank" rel="noopener" href="https://wa.me/?text=' + encodeURIComponent('Je t’offre le calendrier de l’Avent des mamans 🎄 ' + link) + '">Envoyer par WhatsApp</a>';
+          + '<a class="btn line" target="_blank" rel="noopener" href="https://wa.me/?text=' + encodeURIComponent('Je t’offre le calendrier de l’Avent des mamans 🎄 ' + link) + '">Envoyer par WhatsApp</a>'
+          + '<div class="sep">une autre amie ?</div><button class="btn line" data-act="gift" type="button">🎁 Offrir à une autre amie</button>';
       }
     }
     h += '</div></div>';
@@ -712,6 +780,24 @@
         return S.db.ref(BASE + '/cadeaux/' + S.giftDraft.id).update({ paye: true, payeAt: iso() }).then(function () { S.giftDraft.paye = true; openGift(); });
       }).catch(function () { box.innerHTML = '<div class="msg err">Vérification impossible pour le moment.</div>'; });
     });
+  }
+
+
+  // ── 💌 Partager le calendrier à une ou plusieurs amies (26/11/2026) : envoie le lien de présentation ──
+  function shareLink() { return location.origin + location.pathname + '?s=partage'; }
+  var SHARE_TXT = 'Je te recommande le calendrier de l’Avent des mamans 🎄 24 petites cases pour souffler avant Noël.';
+  function shareCount(k) { try { if (S.db) S.db.ref(BASE + '/stats/clics/partage_' + k).transaction(function (c) { return (c || 0) + 1; }); } catch (e) {} }
+  function openShare() {
+    var l = shareLink(), t = SHARE_TXT, h = '';
+    h += '<div class="modal" data-act="closeBg"><div class="sheet" role="dialog" aria-modal="true" aria-label="Partager le calendrier"><button class="x" data-act="close" aria-label="Fermer">×</button>';
+    h += '<div class="daytag">Pour tes amies</div><h2>Partager le calendrier</h2><p>Envoie le lien à une ou plusieurs amies : elles découvrent le calendrier et prennent le leur quand elles veulent.</p>';
+    if (navigator.share) h += '<button class="btn gold" data-act="shareNative" type="button">Choisir mes amies</button>';
+    h += '<a class="btn line" target="_blank" rel="noopener" data-act="shareLog" data-k="whatsapp" style="margin-top:10px" href="https://wa.me/?text=' + encodeURIComponent(t + ' ' + l) + '">Envoyer par WhatsApp</a>'
+      + '<a class="btn line" data-act="shareLog" data-k="sms" style="margin-top:10px" href="sms:?&body=' + encodeURIComponent(t + ' ' + l) + '">Envoyer par SMS</a>'
+      + '<a class="btn line" data-act="shareLog" data-k="mail" style="margin-top:10px" href="mailto:?subject=' + encodeURIComponent('Le calendrier de l’Avent des mamans') + '&body=' + encodeURIComponent(t + '\n\n' + l) + '">Envoyer par mail</a>'
+      + '<p class="muted" style="margin:14px 0 6px">Ou copie le lien :</p><input type="text" readonly id="shLink" value="' + esc(l) + '" onclick="this.select()"><button class="btn" data-act="shareCopy" data-link="' + esc(l) + '" type="button">Copier le lien</button>';
+    h += '</div></div>';
+    $('modalHost').innerHTML = h; document.body.style.overflow = 'hidden';
   }
 
   // ── Cadeau reçu ────────────────────────────────────────────────────────────────────────────────
@@ -762,6 +848,10 @@
     if (act === 'essai') { essaiActivate(t.getAttribute('data-app'), t); return; }
     if (act === 'copyEssai') { var el2 = t.getAttribute('data-link'); try { navigator.clipboard.writeText(el2); toast('Lien copié'); } catch (x) { toast('Copie impossible : ouvre l’appli puis ajoute-la à ton écran d’accueil.'); } return; }
     if (act === 'gift') { S.giftDraft = null; openGift(); return; }
+    if (act === 'share') { shareCount('bouton'); openShare(); return; }
+    if (act === 'shareLog') { shareCount(t.getAttribute('data-k') || 'autre'); return; }
+    if (act === 'shareNative') { shareCount('natif'); try { navigator.share({ title: 'Le calendrier de l’Avent des mamans', text: SHARE_TXT, url: shareLink() }).catch(function () {}); } catch (x) {} return; }
+    if (act === 'shareCopy') { shareCount('copie'); var sl = t.getAttribute('data-link'); var shDone = function () { toast('Lien copié'); }, shFb = function () { var si = $('shLink'); if (si) { si.select(); try { document.execCommand('copy'); } catch (x2) {} } shDone(); }; try { navigator.clipboard.writeText(sl).then(shDone, shFb); } catch (x) { shFb(); } return; }
     if (act === 'copyGift') { var l = t.getAttribute('data-link'); try { navigator.clipboard.writeText(l); toast('Lien copié'); } catch (x) { var i = $('gLink'); if (i) { i.select(); document.execCommand('copy'); toast('Lien copié'); } } return; }
   });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeModal(); });
@@ -791,6 +881,96 @@
   }
 
   // ── Démarrage ──────────────────────────────────────────────────────────────────────────────────
+
+  // ── 🔔 Notifications : « Me prévenir chaque matin » (26/11/2026) ───────────────────────────────────
+  // Choix libre de la visiteuse (la demande d'autorisation du navigateur sert de consentement). Aucune publicité, texte neutre.
+  // Jeton de l'appareil : epanouissement_global/avent2026/push/<clé>. La fonction Firebase « aventQuotidien » envoie à 8 h (Paris), du 1er au 24 décembre.
+  var NP_VAPID = 'BNh2RLZlBMDgAIukmLIkk1WEhUvTZ7hJR0iGM9X0HZ4zNVgz08n1_TLkj5ZtXVHo9J8ZAAbTqKl2q877u5h1y5w';
+  var NP_SDK = 'https://www.gstatic.com/firebasejs/10.13.0/firebase-messaging-compat.js';
+  var NP_MSG = '', NP_FG = false;
+  function npHash(t) { var h = 5381, i; for (i = 0; i < t.length; i++) h = ((h << 5) + h + t.charCodeAt(i)) | 0; return 'k' + (h >>> 0).toString(36) + t.slice(-12).replace(/[^A-Za-z0-9]/g, '_'); }
+  function npIos() { return /iphone|ipad|ipod/i.test(navigator.userAgent || '') || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); }
+  function npStandalone() { try { return !!(navigator.standalone || (window.matchMedia && matchMedia('(display-mode: standalone)').matches)); } catch (e) { return false; } }
+  function npActif() { return new Date() < new Date(2026, 11, 25); }
+  function npState() {
+    var ok = ('Notification' in window) && ('serviceWorker' in navigator);
+    if (npIos() && !npStandalone()) return 'ios-install';
+    if (!ok) return 'unsupported';
+    if (Notification.permission === 'denied') return 'denied';
+    if (ls('avent26_push_on') === '1' && Notification.permission === 'granted') return 'on';
+    return 'off';
+  }
+  function npLoadSdk() {
+    return new Promise(function (res, rej) {
+      if (window.firebase && firebase.messaging) return res();
+      var s = document.createElement('script'); s.src = NP_SDK; s.onload = function () { res(); }; s.onerror = function () { rej(new Error('sdk')); };
+      document.head.appendChild(s);
+    });
+  }
+  function npInner() {
+    var st = npState(), b = '';
+    if (st === 'on') b = '<p class="muted" style="margin:0 0 8px">✅ Activées sur cet appareil. Tu recevras un message chaque matin, du 1er au 24 décembre.</p><button class="btn line small" data-act="np-off" type="button">Désactiver</button>';
+    else if (st === 'off') b = '<button class="btn gold" data-act="np-on" type="button">🔔 Me prévenir chaque matin</button><p class="muted" style="margin:10px 0 0">Ton téléphone te demandera l’autorisation : choisis « Autoriser ».</p>';
+    else if (st === 'denied') b = '<p class="muted" style="margin:0">Les notifications sont bloquées pour cette page. Pour les débloquer : touche le cadenas à gauche de l’adresse, puis Notifications, Autoriser (sur iPhone : Réglages, Notifications, l’appli). Recharge ensuite la page.</p>';
+    else if (st === 'ios-install') b = '<p class="muted" style="margin:0">Sur iPhone : touche le bouton Partager (le carré avec une flèche), puis « Sur l’écran d’accueil », puis « Ajouter ». Ouvre ensuite le calendrier depuis sa nouvelle icône : le bouton apparaîtra ici.</p>';
+    else b = '<p class="muted" style="margin:0">Ce navigateur ne permet pas les notifications. Essaie avec Chrome (Android) ou Safari (iPhone, calendrier ajouté à l’écran d’accueil).</p>';
+    return b + (NP_MSG ? '<p class="muted" style="margin:10px 0 0">' + NP_MSG + '</p>' : '');
+  }
+  function npCardHtml() {
+    if (!npActif()) return '';
+    return '<div class="card"><h3>🔔 Ta case, chaque matin</h3><p class="muted" style="margin:0 0 12px">Reçois une notification quand la case du jour est ouverte, du 1er au 24 décembre. Aucune publicité, et tu peux tout couper quand tu veux.</p><div id="npBox">' + npInner() + '</div></div>';
+  }
+  function npRender() { var el = $('npBox'); if (el) el.innerHTML = npInner(); }
+  function npEnable() {
+    if (!S.db) { NP_MSG = 'Connexion impossible pour le moment. Réessaie dans un instant.'; return npRender(); }
+    NP_MSG = 'Activation…'; npRender();
+    Notification.requestPermission().then(function (p) {
+      if (p !== 'granted') { NP_MSG = 'Notifications non autorisées.'; npRender(); throw 'denied'; }
+      return npLoadSdk();
+    }).then(function () { return navigator.serviceWorker.register('firebase-messaging-sw.js'); })
+      .then(function () { return navigator.serviceWorker.ready; })
+      .then(function (reg) { return firebase.messaging().getToken({ vapidKey: NP_VAPID, serviceWorkerRegistration: reg }); })
+      .then(function (tok) {
+        if (!tok) throw new Error('no token');
+        ls('avent26_push_tok', tok); ls('avent26_push_on', '1');
+        return S.db.ref(BASE + '/push/' + npHash(tok)).set({ t: tok, at: firebase.database.ServerValue.TIMESTAMP, ua: String(navigator.userAgent || '').slice(0, 90), src: S.src, par: S.access ? (S.access.parcours || 'cliente') : 'visiteuse' });
+      }).then(function () { NP_MSG = ''; npForeground(); npRender(); })
+      .catch(function (e) { if (e === 'denied') return; NP_MSG = '⚠️ Activation impossible pour le moment. Réessaie dans un instant.'; npRender(); });
+  }
+  function npDisable() {
+    var tok = ls('avent26_push_tok') || ''; ls('avent26_push_on', null);
+    // On retire seulement l'enregistrement : le jeton reste valide pour les notifications de messages des applis.
+    var p = Promise.resolve(); try { if (tok && S.db) p = S.db.ref(BASE + '/push/' + npHash(tok)).remove(); } catch (e) {}
+    p.catch(function () {}).then(function () { NP_MSG = 'Notifications désactivées.'; npRender(); });
+  }
+  function npForeground() {
+    try {
+      if (NP_FG || npState() !== 'on') return; NP_FG = true;
+      npLoadSdk().then(function () {
+        firebase.messaging().onMessage(function (payload) {
+          var d = (payload && payload.data) || {};
+          navigator.serviceWorker.ready.then(function (reg) {
+            return reg.showNotification(d.title || 'Calendrier de l’Avent', { body: d.body || 'Ta case du jour est ouverte.', icon: d.icon || 'avent_icone_192.png', badge: 'icon-192.png', tag: d.tag || 'avent', renotify: true, data: { url: d.url || location.href } });
+          }).catch(function () {});
+        });
+      }).catch(function () { NP_FG = false; });
+    } catch (e) { NP_FG = false; }
+  }
+  function npBadgeClear() {
+    try {
+      if (navigator.clearAppBadge) navigator.clearAppBadge().catch(function () {});
+      if (window.caches) caches.delete('mouv-badge').catch(function () {});
+      if (navigator.serviceWorker && navigator.serviceWorker.getRegistration) navigator.serviceWorker.getRegistration().then(function (reg) {
+        if (reg && reg.getNotifications) reg.getNotifications().then(function (l) { l.forEach(function (n) { if (/^avent/.test(n.tag || '')) n.close(); }); });
+      }).catch(function () {});
+    } catch (e) {}
+  }
+  document.addEventListener('click', function (e) {
+    var b = e.target && e.target.closest ? e.target.closest('[data-act="np-on"],[data-act="np-off"]') : null; if (!b) return;
+    e.preventDefault(); if (b.getAttribute('data-act') === 'np-on') npEnable(); else npDisable();
+  }, true);
+  setTimeout(function () { try { if (npState() === 'on') npForeground(); npBadgeClear(); } catch (e) {} }, 1500);
+
   function boot() {
     try { fete(); } catch (e) {}
     try { S.done = JSON.parse(ls('avent26_done') || '{}') || {}; } catch (e) { S.done = {}; }
