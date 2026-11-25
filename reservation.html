@@ -15,7 +15,7 @@
 // ── Anti-cache : force un rechargement (une seule fois par nouvelle version) quand le fichier a été
 // mis à jour, pour que les adhérentes voient toujours la dernière version (ex. lien du live du soir)
 // même si leur téléphone avait mis la page en cache — même mécanisme que sur Maisonnée. ──
-window.RES_BUILD_VERSION = '2026-11-20-video9';
+window.RES_BUILD_VERSION = '2026-11-25-notif1';
 (function() {
   try {
     var KEY = 'res_build_seen_v1';
@@ -304,6 +304,8 @@ body { background: transparent !important; }
       <textarea id="msgInput" class="input-field" maxlength="2000" placeholder="Écris ton message…" style="min-height:84px;resize:vertical;font-family:inherit"></textarea>
       <button class="btn-confirm" id="msgSendBtn" onclick="resMsgSend()" style="margin-top:10px">Envoyer</button>
       <div class="card-hint" id="msgStatus" style="margin:8px 0 0"></div>
+      <!-- NOTIFICATIONS DE MESSAGES (25/11/2026) : même principe que dans Mon espace co-NAÎTRE. Voir resPush*(). -->
+      <div id="pushBox" style="margin-top:16px;padding-top:14px;border-top:1px solid #E2DCC8"></div>
     </div>
   </div>
 
@@ -1557,7 +1559,8 @@ function resIdentify() {
   if (!resDB) { errEl.textContent = 'Connexion indisponible pour le moment — réessaie dans un instant.'; errEl.style.display = 'block'; return; }
   resDB.ref('reservations/clients').orderByChild('email').equalTo(email).once('value').then(function(snap) {
     var val = snap.val();
-    var codes = val ? Object.keys(val) : [];
+    // essais gratuits terminés : on les ignore (une vraie fiche de la même adresse mail passe devant)
+    var codes = val ? Object.keys(val).filter(function(c) { var v = val[c]; return !(v && v.essai === true && (+v.essaiFin || 0) < Date.now()); }) : [];
     if (!codes.length) {
       // Pas de fiche existante : ce n'est pas forcément une impasse — on lui propose de découvrir les
       // prochains créneaux par lieu et de s'inscrire directement via le CRM (voir resShowProspectMode).
@@ -1838,6 +1841,107 @@ function resMsgSend() {
   }).catch(function() { st.textContent = '⚠️ Message non envoyé — vérifie ta connexion et réessaie (ton texte est conservé).'; btn.disabled = false; });
 }
 
+
+// ── 🔔 Notifications de messages (25/11/2026) — même principe que dans Mon espace co-NAÎTRE ─────────
+// La cliente reçoit « Anaïs t'a répondu. » sur son téléphone. Aucun message promotionnel ; jamais le contenu du message.
+// Jeton de l'appareil : epanouissement_global/push_clientes/mouv_<code>/<clé> (avec remind:false : pas de rappel de 18 h ici).
+// La fonction Firebase « notifierMessage » (dossier 5_fonction_notifications_a_deployer) fait l'envoi.
+var RES_PUSH_VAPID = 'BNh2RLZlBMDgAIukmLIkk1WEhUvTZ7hJR0iGM9X0HZ4zNVgz08n1_TLkj5ZtXVHo9J8ZAAbTqKl2q877u5h1y5w';
+var RES_PUSH_SDK = 'https://www.gstatic.com/firebasejs/10.13.0/firebase-messaging-compat.js';
+var RES_PUSH_MSG = '', RES_PUSH_FG = false;
+function resPushKey(s) { return 'res_push_' + s + '_' + RES_CODE; }
+function resPushHash(t) { var h = 5381, i; for (i = 0; i < t.length; i++) h = ((h << 5) + h + t.charCodeAt(i)) | 0; return 'k' + (h >>> 0).toString(36) + t.slice(-12).replace(/[^A-Za-z0-9]/g, '_'); }
+function resPushIos() { return /iphone|ipad|ipod/i.test(navigator.userAgent || '') || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); }
+function resPushStandalone() { try { return !!(navigator.standalone || (window.matchMedia && matchMedia('(display-mode: standalone)').matches)); } catch (e) { return false; } }
+function resPushState() {
+  var ok = ('Notification' in window) && ('serviceWorker' in navigator);
+  if (resPushIos() && !resPushStandalone()) return 'ios-install';
+  if (!ok) return 'unsupported';
+  if (Notification.permission === 'denied') return 'denied';
+  try { if (localStorage.getItem(resPushKey('on')) === '1' && Notification.permission === 'granted') return 'on'; } catch (e) {}
+  return 'off';
+}
+function resPushLoadSdk() {
+  return new Promise(function(res, rej) {
+    if (window.firebase && firebase.messaging) return res();
+    var s = document.createElement('script'); s.src = RES_PUSH_SDK; s.onload = function() { res(); }; s.onerror = function() { rej(new Error('sdk')); };
+    document.head.appendChild(s);
+  });
+}
+function resPushPath(tok) { return 'epanouissement_global/push_clientes/mouv_' + RES_CODE + '/' + resPushHash(tok); }
+function resPushRender() {
+  var box = document.getElementById('pushBox'); if (!box || !RES_CODE) return;
+  var st = resPushState(), body = '';
+  if (st === 'on') body = '<p class="card-hint" style="margin:0 0 10px">✅ Activées sur cet appareil.</p><button class="btn-confirm" style="background:#fff;color:#3F5D46;border:1.5px solid #3F5D46" onclick="resPushDisable()">Désactiver</button>';
+  else if (st === 'off') body = '<button class="btn-confirm" onclick="resPushEnable()">Activer les notifications</button>';
+  else if (st === 'denied') body = '<p class="card-hint" style="margin:0">Les notifications sont bloquées pour cette page. Pour les autoriser, ouvre les réglages de ton navigateur ou de ton téléphone, puis reviens ici.</p>';
+  else if (st === 'ios-install') body = '<p class="card-hint" style="margin:0">Sur iPhone : touche le bouton Partager, puis « Sur l\'écran d\'accueil ». Ouvre ensuite l\'appli depuis son icône : le bouton d\'activation apparaîtra ici.</p>';
+  else body = '<p class="card-hint" style="margin:0">Ce navigateur ne permet pas les notifications. Essaie avec Chrome (Android) ou Safari (iPhone, appli ajoutée à l\'écran d\'accueil).</p>';
+  box.innerHTML = '<div style="font-weight:700;margin:0 0 6px">🔔 Être prévenue quand Anaïs répond</div><p class="card-hint" style="margin:0 0 10px">Tu reçois une notification quand Anaïs te répond. Aucun message promotionnel, et jamais le contenu de tes messages. Tu peux tout couper quand tu veux.</p>' + body + (RES_PUSH_MSG ? '<p class="card-hint" style="margin:10px 0 0">' + RES_PUSH_MSG + '</p>' : '');
+}
+function resPushEnable() {
+  if (!(RES_CODE && resDB)) { RES_PUSH_MSG = 'Ouvre ton espace avec ton lien personnel pour activer les notifications.'; return resPushRender(); }
+  RES_PUSH_MSG = 'Activation…'; resPushRender();
+  Notification.requestPermission().then(function(p) {
+    if (p !== 'granted') { RES_PUSH_MSG = 'Notifications non autorisées.'; resPushRender(); throw 'denied'; }
+    return resPushLoadSdk();
+  }).then(function() { return navigator.serviceWorker.register('firebase-messaging-sw.js'); })
+    .then(function() { return navigator.serviceWorker.ready; })
+    .then(function(reg) { return firebase.messaging().getToken({ vapidKey: RES_PUSH_VAPID, serviceWorkerRegistration: reg }); })
+    .then(function(tok) {
+      if (!tok) throw new Error('no token');
+      try { localStorage.setItem(resPushKey('tok'), tok); localStorage.setItem(resPushKey('on'), '1'); } catch (e) {}
+      return resDB.ref(resPushPath(tok)).set({ t: tok, at: firebase.database.ServerValue.TIMESTAMP, ua: String(navigator.userAgent || '').slice(0, 90), remind: false });
+    }).then(function() { resPushFlag(true); resPushForeground(); RES_PUSH_MSG = '✅ Notifications activées.'; resPushRender(); })
+    .catch(function(e) { if (e === 'denied') return; RES_PUSH_MSG = '⚠️ Activation impossible pour le moment. Réessaie dans un instant.'; resPushRender(); });
+}
+function resPushDisable() {
+  var tok = ''; try { tok = localStorage.getItem(resPushKey('tok')) || ''; localStorage.removeItem(resPushKey('on')); } catch (e) {}
+  RES_PUSH_MSG = 'Notifications désactivées.';
+  var p = Promise.resolve();
+  try { if (tok && resDB) p = resDB.ref(resPushPath(tok)).remove(); } catch (e) {}
+  resPushFlag(false);
+  p.catch(function() {}).then(function() { return window.firebase && firebase.messaging ? firebase.messaging().deleteToken() : null; }).catch(function() {}).then(resPushRender);
+}
+// Signale à Anaïs (tableau de bord) que cette cliente a activé les notifications.
+function resPushFlag(on) {
+  try {
+    if (!RES_CODE || !resDB) return;
+    var r = resDB.ref(resMsgPath() + '/meta/push');
+    if (on) r.set({ on: true, at: firebase.database.ServerValue.TIMESTAMP, os: resPushIos() ? 'iPhone' : (/android/i.test(navigator.userAgent || '') ? 'Android' : 'Autre') }).catch(function() {});
+    else r.remove().catch(function() {});
+  } catch (e) {}
+}
+// Notification aussi quand l'appli est ouverte.
+function resPushForeground() {
+  try {
+    if (RES_PUSH_FG || resPushState() !== 'on') return; RES_PUSH_FG = true;
+    resPushLoadSdk().then(function() {
+      firebase.messaging().onMessage(function(payload) {
+        var d = (payload && payload.data) || {};
+        navigator.serviceWorker.ready.then(function(reg) {
+          return reg.showNotification(d.title || 'co-NAÎTRE en mouvement', { body: d.body || 'Tu as un nouveau message.', icon: 'icon-192.png', badge: 'icon-192.png', tag: d.tag || 'message', renotify: true, silent: false, vibrate: [200, 100, 200, 100, 200], data: { url: d.url || reg.scope } });
+        }).catch(function() {});
+      });
+    }).catch(function() { RES_PUSH_FG = false; });
+  } catch (e) { RES_PUSH_FG = false; }
+}
+// Petit chiffre sur l'icône : remis à zéro (et notifications de l'écran verrouillé effacées) à l'ouverture de l'appli.
+function resPushBadgeClear() {
+  try {
+    if (navigator.clearAppBadge) navigator.clearAppBadge().catch(function() {});
+    if (window.caches) caches.delete('mouv-badge').catch(function() {});
+    if (navigator.serviceWorker && navigator.serviceWorker.getRegistration) navigator.serviceWorker.getRegistration().then(function(reg) {
+      if (reg && reg.getNotifications) reg.getNotifications().then(function(l) { l.forEach(function(n) { n.close(); }); });
+    }).catch(function() {});
+  } catch (e) {}
+}
+function resPushInit() {
+  try { resPushRender(); if (resPushState() === 'on') { resPushForeground(); resPushFlag(true); } } catch (e) {}
+  setTimeout(resPushBadgeClear, 1500);
+  document.addEventListener('visibilitychange', function() { if (document.visibilityState === 'visible') setTimeout(resPushBadgeClear, 500); });
+}
+
 // Charge la fiche de RES_CODE et attache les écouteurs en direct — utilisé aussi bien pour un lien
 // personnel (?code=xxx) que juste après une identification par email réussie.
 function resLoadClientAndListen(fromIdentify) {
@@ -1852,6 +1956,10 @@ function resLoadClientAndListen(fromIdentify) {
       RES_CODE = '';
       resShowIdentifyForm();
       return;
+    }
+    if (data.essai === true && (+data.essaiFin || 0) < Date.now()) {   // essai gratuit terminé (lien ou code mémorisé)
+      resForgetSavedCode(); RES_CODE = '';
+      resShowIdentifyForm(); return;
     }
     RES_CLIENT = resNormalizeClient(data);
     resShowBanner('👋 Bonjour ' + (data.nom || '') + ' !');
@@ -1878,6 +1986,7 @@ function resLoadClientAndListen(fromIdentify) {
     });
     resFetchEvenementLink();
     resMsgListen();
+    resPushInit();
     resDB.ref('reservations/evenements_rsvp/' + RES_CODE).on('value', function(s) {
       RES_EV_RSVP = s.val() || {};
       resRenderEvenements();
@@ -2379,5 +2488,59 @@ function xvClose() {
 document.addEventListener('keydown', function(e) { if (e.key === 'Escape') xvClose(); });
 </script>
 
+<script>
+/* 🎁 Essai gratuit (calendrier de l'Avent) : si le lien contient un identifiant d'essai (essai_…), on vérifie sur
+   Firebase que l'essai est encore ouvert. Fin de l'essai (ou essai coupé) → écran de fin par-dessus l'appli.
+   Sans identifiant d'essai dans le lien, ce bloc ne fait strictement rien : les clientes ne sont pas concernées. */
+(function () {
+  var m = /[?&](?:client|code)=(essai_[a-z0-9]+)/i.exec(location.search); if (!m) return;
+  var ID = m[1].toLowerCase(), LSK = 'essai_fin_' + ID, NOM = 'co-NAÎTRE en mouvement', RETOUR = 'https://anaisfittraining-afk.github.io/co-naitre-en-mouvement/avent.html';
+  var fin = 0, ov = null, pill = null, db = null, tick = null;
+  try { fin = parseInt(localStorage.getItem(LSK) || '0', 10) || 0; } catch (e) {}
+  function overlay(titre, txt, withBtn) {
+    if (!ov) {
+      ov = document.createElement('div'); ov.id = 'essaiOverlay';
+      ov.style.cssText = 'position:fixed;inset:0;z-index:2147483000;background:#F7F1E6;display:flex;align-items:center;justify-content:center;padding:24px;font-family:Karla,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#2C3A30;text-align:center';
+      document.body.appendChild(ov);
+    }
+    ov.innerHTML = '<div style="max-width:380px"><div style="font-size:44px;margin-bottom:8px">🎁</div><h1 style="font-family:Fraunces,Georgia,serif;font-size:26px;margin:0 0 10px;color:#3F5D46">' + titre + '</h1><p style="margin:0 0 20px;color:#66735F;font-size:16px;line-height:1.5">' + txt + '</p>' +
+      (withBtn ? '<a href="' + RETOUR + '" style="display:block;padding:14px;border-radius:14px;background:#3F5D46;color:#fff;font-weight:700;text-decoration:none;font-size:16px">Retour à mon calendrier</a>' : '') + '</div>';
+  }
+  function hideOverlay() { if (ov) { ov.remove(); ov = null; } }
+  function left(ms) { var h = Math.floor(ms / 3600000), d = Math.floor(h / 24); if (d >= 2) return d + ' jours'; if (h >= 1) return h + ' h ' + ('0' + Math.floor((ms % 3600000) / 60000)).slice(-2); return Math.max(1, Math.ceil(ms / 60000)) + ' min'; }
+  function showPill() {
+    if (!pill) {
+      pill = document.createElement('div');
+      pill.style.cssText = 'position:fixed;top:6px;right:6px;z-index:2147482000;background:rgba(63,93,70,.92);color:#fff;font:700 11.5px Karla,-apple-system,sans-serif;padding:5px 10px;border-radius:999px;pointer-events:none;box-shadow:0 2px 6px rgba(0,0,0,.18)';
+      document.body.appendChild(pill);
+    }
+    pill.textContent = '🎁 Essai · il reste ' + left(fin - Date.now());
+  }
+  function judge() {
+    if (!fin) return;
+    if (Date.now() >= fin) { if (pill) { pill.remove(); pill = null; } overlay('Ton essai est terminé', 'Merci d’avoir testé ' + NOM + ' ! Retrouve dans ton calendrier comment continuer avec Anaïs.', true); }
+    else { hideOverlay(); showPill(); }
+  }
+  function verify() {
+    if (!db) return;
+    db.ref('epanouissement_global/avent2026/essais/' + ID).once('value').then(function (sn) {
+      var v = sn.val();
+      if (!v || !v.fin) { fin = 1; try { localStorage.removeItem(LSK); } catch (e) {} overlay('Ce lien d’essai n’est pas valable', 'Retourne sur ton calendrier de l’Avent pour activer ton essai.', true); return; }
+      fin = +v.fin; try { localStorage.setItem(LSK, String(fin)); } catch (e) {}
+      judge();
+    }).catch(function () { if (!fin) overlay('Connexion nécessaire', 'Vérifie ta connexion internet pour ouvrir ton essai, puis réessaie.', false); });
+  }
+  function start() {
+    if (typeof firebase === 'undefined' || !firebase.initializeApp) { if (!fin) overlay('Connexion nécessaire', 'Vérifie ta connexion internet pour ouvrir ton essai, puis réessaie.', false); return; }
+    try { var app; try { app = firebase.app('essaiGuard'); } catch (e) { app = firebase.initializeApp({ apiKey: 'AIzaSyC9BmsyRf2MY7qxRO7bL1wRhkJuig0IcLQ', authDomain: 'cooperation-familiale.firebaseapp.com', databaseURL: 'https://cooperation-familiale-default-rtdb.europe-west1.firebasedatabase.app', projectId: 'cooperation-familiale' }, 'essaiGuard'); } db = app.database(); } catch (e) { db = null; }
+    if (!fin) overlay('Un instant…', 'Je vérifie ton essai.', false); else judge();
+    verify();
+    tick = setInterval(judge, 30000);
+    setInterval(verify, 300000);
+    document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') { judge(); verify(); } });
+  }
+  if (document.readyState === 'complete') start(); else window.addEventListener('load', start);
+})();
+</script>
 </body>
 </html>

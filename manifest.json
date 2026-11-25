@@ -1,9 +1,9 @@
 {
   "name": "co-NAÎTRE en mouvement",
   "short_name": "En mouvement",
-  "start_url": "./",
+  "start_url": "reservation.html",
   "scope": "./",
-  "display": "browser",
+  "display": "standalone",
   "background_color": "#FDFDF5",
   "theme_color": "#3F5D46",
   "lang": "fr",
